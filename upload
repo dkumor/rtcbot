@@ -1,0 +1,20 @@
+#!/bin/bash
+PASS=dayumGurl
+SSH="sshpass -p $PASS ssh"
+LOC=pi@192.168.50.183
+
+# Stop running program
+$SSH $LOC 'kill `cat /home/pi/baja/baja.pid`'
+
+# Sync the files over
+rsync -avz --delete --rsh="$SSH" ./ $LOC:/home/pi/baja/
+
+# If args given
+if [ $# -gt 0 ]; then
+    echo "Building"
+    $SSH $LOC "/home/pi/.arduino-1.8.5/arduino --upload --verbose-build --verbose-upload /home/pi/baja/Baja.ino"
+    echo "Build Finished -----------------------------"
+fi
+
+# Restart running program
+$SSH $LOC "/home/pi/baja/start"
