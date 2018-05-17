@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# This script shuts down baja.
+source ./cred
+
+# Stop running program
+$SSH $LOC "tail -f /home/pi/baja/baja.log"

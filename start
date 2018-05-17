@@ -2,5 +2,5 @@
 # This is run on startup
 
 cd /home/pi/baja
-nohup python -u baja.py &> baja.log < /dev/null &
+nohup python3 -u baja.py &> baja.log < /dev/null &
 echo $! > baja.pid

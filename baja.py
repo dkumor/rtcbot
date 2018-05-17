@@ -2,8 +2,12 @@ import time
 
 import os
 import sys
+import serial
 
-print("Hello World!!!")
+import asyncio
+import websockets
+
+s = serial.Serial("/dev/ttyS0", 115200)
 
 while True:
-    time.sleep(1)
+    print(s.readline(), sep="")
