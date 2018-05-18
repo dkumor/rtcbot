@@ -11,7 +11,7 @@ rsync -avz --delete --rsh="$SSH" ./ $LOC:/home/pi/baja/
 if [ $# -gt 0 ]; then
     echo "Building"
     $SSH $LOC "/home/pi/.arduino-1.8.5/arduino --upload --verbose-build --verbose-upload /home/pi/baja/Baja.ino"
-    echo "Build Finished -----------------------------"
+    echo "\nBuild Finished -----------------------------"
 fi
 
 # Restart running program

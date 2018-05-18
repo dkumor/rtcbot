@@ -4,8 +4,7 @@ import os
 import sys
 import serial
 
-import asyncio
-import websockets
+import sanic
 
 s = serial.Serial("/dev/ttyS0", 115200)
 
