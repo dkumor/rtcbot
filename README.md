@@ -47,3 +47,8 @@ the switch
 12
 22
 23
+
+STEERING
+1000,2000 - attach timing
+range:
+50-142, middle: 96

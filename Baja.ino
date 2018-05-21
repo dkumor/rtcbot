@@ -42,14 +42,22 @@ void setup() {
     // Start comms with Raspi
     Serial.begin(115200);
 
+    // Set up the motor controller
     pinMode(PWM,OUTPUT);
     pinMode(SLP,OUTPUT);
     pinMode(DIR,OUTPUT);
 
+    // The motor controller starts in sleep mode, and direction is forward.
+    digitalWrite(SLP,0);
+    digitalWrite(DIR,1);
+
+    // Whether there was an overcurrent in the current sensor.
     pinMode(FLT,INPUT);
 
+    // Distance sensor
     pinMode(ECHO,INPUT); // ECHO
     pinMode(TRIGGER, OUTPUT); // TRIGGER
+    digitalWrite(TRIGGER,LOW);
 
     // The Switch with values ABC. These values allow us to read the switch value.
     pinMode(SWITCH1,INPUT_PULLUP);
@@ -57,23 +65,21 @@ void setup() {
     pinMode(SWITCH2,OUTPUT);
     digitalWrite(SWITCH2,0);
 
-    // Rightmost servo
-    steering.attach(SERVO_RIGHTMOST);
-    // leftmost servo
+    // Servos!
+    steering.attach(SERVO_RIGHTMOST,1000,2000);
     claw.attach(SERVO_LEFTMOST,1000,2000);
-
-    // middle left
-    armMain.attach(SERVO_MIDDLELEFT,640,2070); // WTF
-    // middle right
+    armMain.attach(SERVO_MIDDLELEFT,640,2070);
     armUpDown.attach(SERVO_MIDDLERIGHT,640,2070);
-
-    // upper servo
     armRotation.attach(SERVO_UPPER,640,2070);
 
-    
+    // Initialize servos to a safe setting
+    steering.write(96);
+    claw.write(90);
+    armMain.write(90);
+    armUpDown.write(90);
+    armRotation.write(90);
 
-    digitalWrite(SLP,0);
-    digitalWrite(DIR,1);
+    
     
 }
 
@@ -89,6 +95,29 @@ int getSwitch() {
 
 // Run in a loop
 void loop() {
+    /*
+    int pos;
+   for (pos = 0; pos <= 180; pos += 1) { // goes from 0 degrees to 180 degrees
+    // in steps of 1 degree
+    armRotation.write(pos);              // tell servo to go to position in variable 'pos'
+    delay(15);                       // waits 15ms for the servo to reach the position
+        if (pos==90) delay(1000);
+    }
+    delay(1000);
+    for (pos = 180; pos >= 0; pos -= 1) { // goes from 180 degrees to 0 degrees
+        armRotation.write(pos);              // tell servo to go to position in variable 'pos'
+        delay(15);                       // waits 15ms for the servo to reach the position
+    }
+    delay(1000);
+    /*
+    digitalWrite(TRIGGER,HIGH);
+    delayMicroseconds(10);
+    digitalWrite(TRIGGER,LOW);
+    unsigned long duration = pulseIn(ECHO,HIGH,100000);
+    float distance = duration/58.2;
+    Serial.println(distance);
+    delay(200);
+    */
     /*
     analogWrite(PWM,20);
     delay(500);
@@ -107,18 +136,20 @@ void loop() {
     Serial.println(getSwitch());
     delay(100);
     */
+   /*
    int pos;
-   for (pos = 0; pos <= 180; pos += 1) { // goes from 0 degrees to 180 degrees
+   for (pos = 50; pos <= 142; pos += 1) { // goes from 0 degrees to 180 degrees
     // in steps of 1 degree
-    armMain.write(pos);              // tell servo to go to position in variable 'pos'
+    steering.write(pos);              // tell servo to go to position in variable 'pos'
     delay(15);                       // waits 15ms for the servo to reach the position
-        if (pos==90) delay(500);
+        if (pos==96) delay(1000);
     }
     delay(1000);
-    for (pos = 180; pos >= 0; pos -= 1) { // goes from 180 degrees to 0 degrees
-        armMain.write(pos);              // tell servo to go to position in variable 'pos'
+    for (pos = 142; pos >= 50; pos -= 1) { // goes from 180 degrees to 0 degrees
+        steering.write(pos);              // tell servo to go to position in variable 'pos'
         delay(15);                       // waits 15ms for the servo to reach the position
     }
+    delay(1000);
     /*
     Serial.println(rd());
     analogWrite(6,30);
