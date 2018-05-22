@@ -50,6 +50,7 @@ void setup() {
     // The motor controller starts in sleep mode, and direction is forward.
     digitalWrite(SLP,0);
     digitalWrite(DIR,1);
+    analogWrite(PWM,0);
 
     // Whether there was an overcurrent in the current sensor.
     pinMode(FLT,INPUT);
@@ -73,13 +74,17 @@ void setup() {
     armRotation.attach(SERVO_UPPER,640,2070);
 
     // Initialize servos to a safe setting
-    steering.write(96);
     claw.write(90);
     armMain.write(90);
     armUpDown.write(90);
     armRotation.write(90);
+    // Steering is weird in that it has a range of
+    // 50-142, with middle at 96. This is due to weirdness
+    // in the servo library when changing the timing
+    steering.write(96);
 
-    
+    // Wait for serial command, and beep on acquisition
+    waitForStartup();
     
 }
 
@@ -93,8 +98,28 @@ int getSwitch() {
     return 3;
 }
 
+
+/*
+*/
+void waitForStartup() {
+    // Wait until serial available
+    while (!Serial.available());
+
+    // Beep at first serial command
+    digitalWrite(SLP,1);
+    analogWrite(PWM,5);
+    delay(70);
+    analogWrite(PWM,0);
+    delay(70);
+    analogWrite(PWM,5);
+    delay(70);
+    analogWrite(PWM,0);
+    digitalWrite(SLP,0);
+}
+
 // Run in a loop
 void loop() {
+    
     /*
     int pos;
    for (pos = 0; pos <= 180; pos += 1) { // goes from 0 degrees to 180 degrees
@@ -108,7 +133,8 @@ void loop() {
         armRotation.write(pos);              // tell servo to go to position in variable 'pos'
         delay(15);                       // waits 15ms for the servo to reach the position
     }
-    delay(1000);
+    //delay(1000);
+    */
     /*
     digitalWrite(TRIGGER,HIGH);
     delayMicroseconds(10);
@@ -123,6 +149,7 @@ void loop() {
     delay(500);
     analogWrite(PWM,0);
     delay(3000);
+    */
     
     Serial.println("---------");
     Serial.println(analogRead(VOLTAGE));
@@ -134,8 +161,8 @@ void loop() {
     Serial.println(analogRead(ACCEL_Z));
     Serial.println(digitalRead(FLT));
     Serial.println(getSwitch());
-    delay(100);
-    */
+    delay(500);
+    
    /*
    int pos;
    for (pos = 50; pos <= 142; pos += 1) { // goes from 0 degrees to 180 degrees
@@ -150,6 +177,7 @@ void loop() {
         delay(15);                       // waits 15ms for the servo to reach the position
     }
     delay(1000);
+    */
     /*
     Serial.println(rd());
     analogWrite(6,30);
