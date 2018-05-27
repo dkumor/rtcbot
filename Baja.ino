@@ -7,6 +7,12 @@
 */
 
 #include <Servo.h>
+#include <LowPower.h>
+
+// Low power mode UART
+#include <avr/interrupt.h>
+#include <avr/power.h>
+#include <avr/sleep.h>
 
 #define SERVO_RIGHTMOST 9
 #define SERVO_MIDDLERIGHT 10
@@ -66,6 +72,18 @@ void setup() {
     pinMode(SWITCH2,OUTPUT);
     digitalWrite(SWITCH2,0);
 
+    // Move all servos to their "init" locations
+    servoInit();
+
+    // Wait for serial command, and beep on acquisition
+    while (!Serial.available()) {
+        delay(20);
+    }
+
+    buzzMotor(2,70,70);
+}
+
+void servoInit() {
     // Servos!
     steering.attach(SERVO_RIGHTMOST,1000,2000);
     claw.attach(SERVO_LEFTMOST,1000,2000);
@@ -74,19 +92,103 @@ void setup() {
     armRotation.attach(SERVO_UPPER,640,2070);
 
     // Initialize servos to a safe setting
-    claw.write(90);
-    armMain.write(90);
-    armUpDown.write(90);
-    armRotation.write(90);
+
     // Steering is weird in that it has a range of
     // 50-142, with middle at 96. This is due to weirdness
     // in the servo library when changing the timing
     steering.write(96);
 
-    // Wait for serial command, and beep on acquisition
-    waitForStartup();
+    // Others are normal
+    claw.write(90);
+    armMain.write(90);
+    armUpDown.write(90);
+    armRotation.write(90);
+}
+
+
+void buzzMotor(int number,int timeOn,int timeOff) {
+    // buzz the motor
+    int slp_state = digitalRead(SLP);
+    digitalWrite(SLP,1);
+
+    analogWrite(PWM,5);
+    delay(timeOn);
+    analogWrite(PWM,0);
+    for (int i=1;i<number;i++) {
+        delay(timeOff);
+        analogWrite(PWM,5);
+    delay(timeOn);
+    analogWrite(PWM,0);
+    }
+
+    digitalWrite(SLP,slp_state);
+}
+
+// This is used on low battery to basically kill the chip so that it uses as little current as possible.
+// We periodically wake it to complain about battery by buzzing the motor
+void lowBatteryMode() {
+    steering.detach();
+    claw.detach();
+    armMain.detach();
+    armUpDown.detach();
+    armRotation.detach();
+
+    // Controller in Sleep mode
+    digitalWrite(SLP,0);
+
+    while (true) {
+        
+        // Complain about low power
+        buzzMotor(3,500,500);
+
+        // Wait 80 seconds
+        for (int i=0;i < 10;i++) {
+            LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
+        }
+
+    }
     
 }
+/*
+void sleepUntilSerial() {
+    // Set low power mode. Note that servos must be reinitialized after This
+    // This mode puts the arduino into sleep mode where everything is turned off
+    // except the UART
+
+    steering.detach();
+    claw.detach();
+    armMain.detach();
+    armUpDown.detach();
+    armRotation.detach();
+
+    // Controller in Sleep mode
+    digitalWrite(SLP,0);
+
+    set_sleep_mode(SLEEP_MODE_IDLE);
+    sleep_enable();
+
+    // Disable ALL the things
+    power_adc_disable();
+    power_spi_disable();
+    power_timer0_disable();
+    power_timer1_disable();
+    power_timer2_disable();
+    power_timer3_disable();
+    power_twi_disable();
+
+    sleep_mode(); // here the device is actually put to sleep!!
+
+    // Whoa, wake up time
+    sleep_disable();
+    // Power up everything
+    power_all_enable();
+
+    // Reinitialize the servos
+    servoInit();
+
+    buzzMotor(2,70,70);
+}
+
 
 /*
  Returns the setting of the 3-position switch on the bottom.
@@ -98,28 +200,88 @@ int getSwitch() {
     return 3;
 }
 
-
-/*
-*/
-void waitForStartup() {
-    // Wait until serial available
-    while (!Serial.available());
-
-    // Beep at first serial command
-    digitalWrite(SLP,1);
-    analogWrite(PWM,5);
-    delay(70);
+void resetOutput() {
     analogWrite(PWM,0);
-    delay(70);
-    analogWrite(PWM,5);
-    delay(70);
-    analogWrite(PWM,0);
-    digitalWrite(SLP,0);
+    digitalWrite(DIR,1);
+
+    // Steering is weird in that it has a range of
+    // 50-142, with middle at 96. This is due to weirdness
+    // in the servo library when changing the timing
+    steering.write(96);
+
+    // Others are normal
+    claw.write(90);
+    armMain.write(90);
+    armUpDown.write(90);
+    armRotation.write(90);
+}
+
+
+void readSensors() {
+    Serial.print(analogRead(VOLTAGE));
+    Serial.print(',');
+    Serial.print(analogRead(TEMPERATURE));
+    Serial.print(',');
+    Serial.print(analogRead(CURRENT));
+    Serial.print(',');
+    Serial.print(analogRead(CURRENT_MOTOR));
+    Serial.print(',');
+    Serial.print(analogRead(ACCEL_X));
+    Serial.print(',');
+    Serial.print(analogRead(ACCEL_Y));
+    Serial.print(',');
+    Serial.print(analogRead(ACCEL_Z));
+    Serial.print(',');
+    Serial.print(digitalRead(FLT));
+    Serial.print(',');
+    Serial.println(getSwitch());
+}
+
+void runControls() {
+    unsigned long prevSignal = millis();
+    while (!Serial.available()) {
+        if (prevSignal + 300 < millis()) {
+            resetOutput();
+        }
+    }
+    long pwm = Serial.parseInt();
+    long dir = Serial.parseInt();
+    long steer = Serial.parseInt();
+    long slp = Serial.parseInt();
+    //long rot = Serial.parseInt();
+    //long ud = Serial.parseInt();
+    //long m = Serial.parseInt();
+    //long claw = Serial.parseInt();
+    
+    // Let's limit the outputs to correct values
+    pwm = (pwm > 40? 40:pwm);
+    pwm = (pwm <0? 0:pwm);
+    steer = (steer>142?142:steer);
+    steer = (steer<50?50:steer);
+    /*
+    rot = (rot>180?180:rot);
+    rot = (rot<0?0:rot);
+    ud = (ud>180?180:ud);
+    ud = (ud<0?0:ud);
+    m = (m>180?180:m);
+    m = (m<0?0:m);
+    claw = (claw>180?180:claw);
+    claw = (claw<0?0:claw);
+    */
+
+    analogWrite(PWM,pwm);
+    digitalWrite(DIR,dir>0);
+    digitalWrite(SLP,slp>0);
+
+    steering.write(steer);
+    
+    // Let's leave the rest alone for now...
+
+    
 }
 
 // Run in a loop
 void loop() {
-    
     /*
     int pos;
    for (pos = 0; pos <= 180; pos += 1) { // goes from 0 degrees to 180 degrees
@@ -150,18 +312,8 @@ void loop() {
     analogWrite(PWM,0);
     delay(3000);
     */
-    
-    Serial.println("---------");
-    Serial.println(analogRead(VOLTAGE));
-    Serial.println(analogRead(TEMPERATURE));
-    Serial.println(analogRead(CURRENT));
-    Serial.println(analogRead(CURRENT_MOTOR));
-    Serial.println(analogRead(ACCEL_X));
-    Serial.println(analogRead(ACCEL_Y));
-    Serial.println(analogRead(ACCEL_Z));
-    Serial.println(digitalRead(FLT));
-    Serial.println(getSwitch());
-    delay(500);
+    runControls();
+    readSensors();
     
    /*
    int pos;

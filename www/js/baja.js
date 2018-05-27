@@ -1,5 +1,13 @@
 console.log("Baja Startup");
 
+var ws = new WebSocket("ws://" + document.domain + ":" + location.port + "/ws");
+ws.onmessage = function(event) {
+  telemetry = JSON.parse(event.data);
+  for (key in telemetry) {
+    $("#" + key).text(telemetry[key].toFixed(2));
+  }
+};
+
 var haveEvents = "ongamepadconnected" in window;
 var controllers = {};
 
@@ -63,6 +71,8 @@ function removegamepad(gamepad) {
   document.body.removeChild(d);
   delete controllers[gamepad.index];
 }
+var slp = true;
+var lastpressed = false;
 
 function updateStatus() {
   if (!haveEvents) {
@@ -103,6 +113,24 @@ function updateStatus() {
       a.setAttribute("value", controller.axes[i] + 1);
     }
   }
+  if (controller.buttons[3].pressed && lastpressed == false) {
+    slp = !slp;
+    lastpressed = true;
+  }
+  if (!controller.buttons[3].pressed && lastpressed == true) {
+    lastpressed = false;
+  }
+  controls = {
+    power: controller.buttons[6].value - controller.buttons[7].value,
+    sleep: slp,
+    steer: controller.axes[0]
+  };
+
+  for (key in controls) {
+    $("#" + key).text(controls[key]);
+  }
+  ws.send(JSON.stringify(controls));
+  //console.log(controls);
 
   requestAnimationFrame(updateStatus);
 }
