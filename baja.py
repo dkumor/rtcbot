@@ -21,7 +21,8 @@ websocketlist = set()
 defaultControls = {
     "power": 0,
     "steer": 0,
-    "sleep": True
+    "sleep": True,
+    "arm_rotation": 0
 }
 
 
@@ -43,8 +44,9 @@ def getControlString(data):
     pwm = int(abs(data["power"]) * 40)
     dir = int(data["power"] > 0)
     steer = int((data["steer"] + 1) / 2 * 92 + 50)
-    slp = int(data["sleep"])
-    return (str(pwm) + " " + str(dir) + " " + str(steer) + " " + str(slp) + "\n").encode()
+    slp = int(not data["sleep"])
+    rot = int((data["arm_rotation"] + 1) * 90)
+    return (str(pwm) + " " + str(dir) + " " + str(steer) + " " + str(slp) + " " + str(rot) + "\n").encode()
 
 
 serialCTRL = None

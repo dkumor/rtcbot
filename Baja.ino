@@ -248,7 +248,7 @@ void runControls() {
     long dir = Serial.parseInt();
     long steer = Serial.parseInt();
     long slp = Serial.parseInt();
-    //long rot = Serial.parseInt();
+    long rot = Serial.parseInt();
     //long ud = Serial.parseInt();
     //long m = Serial.parseInt();
     //long claw = Serial.parseInt();
@@ -258,9 +258,10 @@ void runControls() {
     pwm = (pwm <0? 0:pwm);
     steer = (steer>142?142:steer);
     steer = (steer<50?50:steer);
-    /*
+    
     rot = (rot>180?180:rot);
     rot = (rot<0?0:rot);
+    /*
     ud = (ud>180?180:ud);
     ud = (ud<0?0:ud);
     m = (m>180?180:m);
@@ -274,6 +275,7 @@ void runControls() {
     digitalWrite(SLP,slp>0);
 
     steering.write(steer);
+    armRotation.write(rot);
     
     // Let's leave the rest alone for now...
 

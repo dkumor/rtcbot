@@ -123,7 +123,8 @@ function updateStatus() {
   controls = {
     power: controller.buttons[6].value - controller.buttons[7].value,
     sleep: slp,
-    steer: controller.axes[0]
+    steer: controller.axes[0],
+    arm_rotation: controller.axes[2]
   };
 
   for (key in controls) {
