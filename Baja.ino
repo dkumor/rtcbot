@@ -282,6 +282,7 @@ void runControls() {
     
 }
 
+int bytebuffer;
 // Run in a loop
 void loop() {
     /*
@@ -314,9 +315,17 @@ void loop() {
     analogWrite(PWM,0);
     delay(3000);
     */
+   if (Serial.available()>=2) {
+       Serial.readBytes((byte*)&bytebuffer,2);
+       Serial.write((byte*)&bytebuffer,2);
+   }
+   
+
+
+   /*
     runControls();
     readSensors();
-    
+    */
    /*
    int pos;
    for (pos = 50; pos <= 142; pos += 1) { // goes from 0 degrees to 180 degrees

@@ -1,114 +1,125 @@
-import time
-import os
-import sys
-import logging
-
 import asyncio
-import sanic
-import json
-from websockets.exceptions import ConnectionClosed
+import serial_asyncio
+from functools import partial
 
-import serial.aio
+import RPi.GPIO as GPIO
+import time
 
-
-app = sanic.Sanic(__name__)
-app.static("/js", "./www/js")
-app.static("/css", "./www/css")
-app.static("/", "./www/index.html")
-
-websocketlist = set()
-
-defaultControls = {
-    "power": 0,
-    "steer": 0,
-    "sleep": True,
-    "arm_rotation": 0
-}
+GPIO.setmode(GPIO.BCM)
+resetpin = 17
 
 
-def prepareSensorData(data):
-    return {
-        "voltage": data[0] * 10 / 1024,
-        "temperature": 0.78125 * data[1] - 67.84,
-        "current": (data[2] - 505) * 5 / 1024 / 0.068,
-        "current_motor": (data[3] * 5 / 1024 - 0.050) / 0.01,
-        "accel_x": (data[4] - 338) * 1.5 / 338,
-        "accel_y": (data[5] - 338) * 1.5 / 338,
-        "accel_z": (data[6] - 338) * 1.5 / 338,
-        "flt": 1 - data[7],
-        "switch": data[8]
-    }
+def reset_arduino():
+    # Toggles the reset pin - this makes sure that the serial connection is restarted
+    # Honestly have no clue why it behaves so weird... but it does,so whatever.
+    # I think the cleanup() is actually performing double duty: it makes the pin float, which
+    # makes reset go to high across the voltage converter.
+    print("Arduino RESET")
+    GPIO.setup(resetpin, GPIO.OUT)
+
+    GPIO.output(resetpin, GPIO.LOW)
+    # time.sleep(0.12)
+    # GPIO.output(resetpin, GPIO.HIGH)
+    # No idea why, but need to wait these 2 seconds for GPIO.cleanup not to kill the arduino
+    time.sleep(2)
+    GPIO.cleanup()
+    # time.sleep(0.5)
+    print("Arduino RESET complete")
 
 
-def getControlString(data):
-    pwm = int(abs(data["power"]) * 40)
-    dir = int(data["power"] > 0)
-    steer = int((data["steer"] + 1) / 2 * 92 + 50)
-    slp = int(not data["sleep"])
-    rot = int((data["arm_rotation"] + 1) * 90)
-    return (str(pwm) + " " + str(dir) + " " + str(steer) + " " + str(slp) + " " + str(rot) + "\n").encode()
+class ArduinoConnection(asyncio.Protocol):
+    """
+    This class takes care of communication with the Arduino - it sends down all servo and motor commands,
+    and it receives all sensor values.
+    """
 
+    def __init__(self, sensor_queue, command_queue):
+        super().__init__()
+        self.transport = None
+        self.sensor_queue = sensor_queue
+        self.command_queue = command_queue
+        self.current_message = bytes()
 
-serialCTRL = None
+        # Need to reset
+        reset_arduino()
 
-
-class SerialControl(asyncio.Protocol):
+        asyncio.ensure_future(self.sender())
 
     def connection_made(self, transport):
-        global serialCTRL
+        print("Arduino connection made")
+        # Write
+        # transport.serial.rts = False
+        # transport.write(b"CINIT")
+        transport.write((1002).to_bytes(2, byteorder="little"))
         self.transport = transport
-        serialCTRL = transport
-        self.currentbuffer = b""
-        transport.serial.rts = False
-        transport.write(getControlString(defaultControls))
-
-    def data_received(self, data):
-        self.currentbuffer += data
-        if b"\r\n" in self.currentbuffer:
-            s = self.currentbuffer.split(b"\r\n")
-            self.currentbuffer = s[1]
-            data = s[0].split(b",")
-            for i in range(len(data)):
-                data[i] = int(data[i])
-            data = json.dumps(prepareSensorData(data))
-            # Send it to all sockets
-
-            loop = asyncio.get_event_loop()
-            asyncio.ensure_future(
-                asyncio.gather(*[ws.send(data) for ws in websocketlist]), loop=loop)
 
     def connection_lost(self, exc):
-        print('port closed')
-        asyncio.get_event_loop().stop()
+        if self.transport is not None:
+            self.transport.close()
+        self.transport = None
+        print("Arduino connection lost")
+
+    def data_received(self, data):
+        print("RECEIVED", data)
+        self.current_message += data
+        if len(self.current_message) >= 2:
+            curint = int.from_bytes(self.current_message[:2], "little")
+            self.sensor_queue.put_nowait(curint)
+            self.current_message = self.current_message[2:]
+
+    def empty_command_queue(self, cmd):
+        # Just pass through cmd, or update it to the most recent command
+        while not self.command_queue.empty():
+            cmd = self.command_queue.get_nowait()
+        return cmd
+
+    async def sender(self):
+        """
+        This function sends the servo and motor control commands to the arduino once they appear in
+        the command queue
+        """
+        while True:  # keep looping forever
+
+            # Get the next command
+            cmd = await self.command_queue.get()
+
+            # Empty the queue of all commands
+            cmd = self.empty_command_queue(cmd)
+
+            while self.transport is None:
+                await asyncio.sleep(0.1)  # Wait until we get a serial connection
+                # Empty the quu
+                cmd = self.empty_command_queue(cmd)
+
+            # PREPROCESS DATA HERE
+            self.transport.write(cmd)
 
 
-@app.listener("before_server_start")
-def init(s, loop):
-    print("Startup baybee!")
-    sc = serial.aio.create_serial_connection(
-        loop, SerialControl, "/dev/ttyS0", 115200)
-    loop.run_until_complete(sc)
-
-
-@app.websocket("/ws")
-async def control(request, ws):
-    print("Opened ws", request, ws)
-    websocketlist.add(ws)
+async def processMessages(sensor_queue):
     while True:
-        try:
-            serialCTRL.write(getControlString(json.loads(await ws.recv())))
-        except:
-            print("Websocket Closed")
-            websocketlist.remove(ws)
-            ws.close()
-            break
+        msg = await sensor_queue.get()
+        print("Got msg:", msg)
 
 
-app.run(host="0.0.0.0", port=8000)
+def initBasic(loop):
+    sensor_queue = asyncio.Queue()
+    command_queue = asyncio.Queue()
+    ac = partial(ArduinoConnection, sensor_queue, command_queue)
+    arduinoConnection = serial_asyncio.create_serial_connection(
+        loop, ac, "/dev/ttyS0", baudrate=115200
+    )
+    asyncio.ensure_future(arduinoConnection)
 
-# s = serial.Serial("/dev/ttyS0", 115200)
+    asyncio.ensure_future(processMessages(sensor_queue))
 
-# s.write("START\n".encode())
 
-# while True:
-#   print(s.readline(), sep="")
+loop = asyncio.get_event_loop()
+
+initBasic(loop)
+
+try:
+    loop.run_forever()
+finally:
+    print("Exiting Event Loop")
+    loop.run_until_complete(loop.shutdown_asyncgens())
+    loop.close()
