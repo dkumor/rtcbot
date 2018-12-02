@@ -9,6 +9,8 @@
 #include <Servo.h>
 #include <LowPower.h>
 
+#include "serialctrl.h"
+
 // Low power mode UART
 #include <avr/interrupt.h>
 #include <avr/power.h>
@@ -315,10 +317,7 @@ void loop() {
     analogWrite(PWM,0);
     delay(3000);
     */
-   if (Serial.available()>=2) {
-       Serial.readBytes((byte*)&bytebuffer,2);
-       Serial.write((byte*)&bytebuffer,2);
-   }
+   runget(Serial);
    
 
 

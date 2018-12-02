@@ -51,6 +51,12 @@ class FrameSubscription:
         self.cvcamera.frameLock.release()
         return frame
 
+    def close(self):
+        """
+        Closes the subscription: no more frames will be recieved by this object once this is called.
+        """
+        self.cvcamera.subscriptions.remove(self)
+
 
 class CVCamera:
     """

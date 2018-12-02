@@ -62,7 +62,7 @@ class ArduinoConnection(asyncio.Protocol):
     def data_received(self, data):
         print("RECEIVED", data)
         self.current_message += data
-        if len(self.current_message) >= 2:
+        while len(self.current_message) >= 2:
             curint = int.from_bytes(self.current_message[:2], "little")
             self.sensor_queue.put_nowait(curint)
             self.current_message = self.current_message[2:]

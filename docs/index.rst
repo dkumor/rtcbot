@@ -10,6 +10,7 @@ Welcome to pirtcbot's documentation!
    :maxdepth: 2
 
    camera
+   arduino
 
 .. automodule:: pirtcbot
    :members:
