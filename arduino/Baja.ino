@@ -284,7 +284,6 @@ void runControls() {
     
 }
 
-int bytebuffer;
 // Run in a loop
 void loop() {
     /*

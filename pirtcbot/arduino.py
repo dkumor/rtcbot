@@ -7,7 +7,7 @@ import serial_asyncio
 import struct
 
 
-class ArduinoConnection(asyncio.Protocol):
+class SerialConnection(asyncio.Protocol):
     """
     Handles sending and receiving commands to/from an arduino using a serial port.
     Communication with the Arduino is performed through C structs: A python dict or tuple is
@@ -25,25 +25,25 @@ class ArduinoConnection(asyncio.Protocol):
     The packed attribute ensures that the arduino's struct is compatible with the encoding performed by python, and the message can be read in directly from the Arduino::
 
         controlMessage msg;
-        Serial.read(&msg,sizeof(msg));
+        Serial.read((char*)&msg,sizeof(msg));
 
-    From Python, you need to give the ArduinoConnection the structure shape in `the format expected by
+    From Python, you need to give the SerialConnection the structure shape in `the format expected by
     Python's structure packing library <https://docs.python.org/3/library/struct.html#format-strings>`_
 
     The arduino is little endian (each string should start with "<")::
 
-        conn = ArduinoConnection(
+        conn = SerialConnection(
             writeFormat="<hB",
             writeKeys=["value1","value2"],
             ...
         )
     
-    The writeFormat string above tells the ArduinoConnection that the first element of the struct ("value1"),
+    The writeFormat string above tells the SerialConnection that the first element of the struct ("value1"),
     is of format "h", which represents an arduino integer. You can then send messages to the Arduino::
         
         conn.write({"value1": -23,"value2": 101})
 
-    Finally, you can send structs to the ArduinoConnection from the Arduino::
+    Finally, you can send structs to the SerialConnection from the Arduino::
 
         typedef __attribute__ ((packed)) struct {
             uint8_t sensorID;
@@ -53,11 +53,11 @@ class ArduinoConnection(asyncio.Protocol):
     and::
 
         sensorMessage msg = { .sensorID = 12, .measurement=123 };
-        Serial.write(&msg,sizeof(msg));
+        Serial.write((char*)&msg,sizeof(msg));
 
     You can then get the message from a Queue::
 
-        conn = ArduinoConnection(
+        conn = SerialConnection(
             readFormat="<BH",
             readKeys=["sensorID","measurement"],
             writeFormat="<hB",
@@ -90,7 +90,7 @@ class ArduinoConnection(asyncio.Protocol):
 
         self.incomingMessageBuffer = bytes()
 
-        self.log = logging.getLogger("pirtcbot.ArduinoConnection")
+        self.log = logging.getLogger("pirtcbot.SerialConnection")
 
         ser = serial.serial_for_url(url, baudrate=baudrate)
 
@@ -117,10 +117,13 @@ class ArduinoConnection(asyncio.Protocol):
         If writeKeys were given, assumes a dictionary or object input, and converts
         the given keys in order into the struct specified by writeFormat, and sent over the serial connection.
         """
+        self.log.debug("sendmsg: %s", msg)
         if self.writeKeys is not None:
             msg = [msg[key] for key in self.writeKeys]
         if self.isConnected():
-            self.transport.write(self.writeStruct.pack(*msg))
+            packedMessage = self.writeStruct.pack(*msg)
+            self.log.debug("send %s", packedMessage)
+            self.transport.write(packedMessage)
         else:
             raise ConnectionError("Serial Connection is closed")
 
@@ -132,7 +135,7 @@ class ArduinoConnection(asyncio.Protocol):
 
     def connection_made(self, transport):
         """
-        Internal function. Notifies the ArduinoConnection that the underlying serial port is opened.
+        Internal function. Notifies the SerialConnection that the underlying serial port is opened.
 
         Do not call this function.
         """
@@ -140,7 +143,7 @@ class ArduinoConnection(asyncio.Protocol):
 
     def connection_lost(self, exc):
         """
-        Internal function. Notifies the ArduinoConnection when the underlying serial port is closed.
+        Internal function. Notifies the SerialConnection when the underlying serial port is closed.
 
         Do not call this function.
         """
@@ -155,13 +158,18 @@ class ArduinoConnection(asyncio.Protocol):
 
         Do not call this function.
         """
-        readStructSize = self.readStruct.calcsize()
+        self.log.debug("recv %s", data)
         self.incomingMessageBuffer += data
-        while len(self.incomingMessageBuffer) >= readStructSize:
-            msg = self.readStruct.unpack(self.incomingMessageBuffer[:readStructSize])
-            self.incomingMessageBuffer = self.incomingMessageBuffer[readStructSize:]
+        while len(self.incomingMessageBuffer) >= self.readStruct.size:
+            msg = self.readStruct.unpack(
+                self.incomingMessageBuffer[: self.readStruct.size]
+            )
+            self.incomingMessageBuffer = self.incomingMessageBuffer[
+                self.readStruct.size :
+            ]
 
             if self.readKeys is not None:
                 msg = dict(zip(self.readKeys, msg))
-            self.readQueue.put(msg)
+            self.log.debug("recvmsg: %s", msg)
+            self._readQueue.put_nowait(msg)
 
