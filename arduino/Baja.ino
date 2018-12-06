@@ -316,8 +316,11 @@ void loop() {
     analogWrite(PWM,0);
     delay(3000);
     */
-   runget(Serial);
-   
+   //runget(Serial);
+   if (Serial.available() > 0) {
+        Serial.print("I received: ");
+        Serial.println(Serial.read());
+    }
 
 
    /*

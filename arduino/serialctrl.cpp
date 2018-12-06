@@ -39,8 +39,10 @@ uint8_t checksum(uint8_t* data, int length) {
 
 void runget(HardwareSerial& Serial) {
     if (readStruct(Serial,cMsg)) {
-        sMsg.checksum = cMsg.checksum;
-        sMsg.value2 = cMsg.value1;
-        writeStruct(Serial,sMsg);
+        Serial.println(cMsg.checksum);
+        Serial.println(cMsg.value1);
+        //sMsg.checksum = cMsg.checksum;
+        //sMsg.value2 = cMsg.value1;
+        //writeStruct(Serial,sMsg);
     }
 }

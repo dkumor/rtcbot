@@ -115,7 +115,7 @@ async def processMessages(sensor_queue):
 async def writeMessage(w):
     await asyncio.sleep(1)
     print("Writing")
-    w.write({"value": 1003, "checksum": 2})
+    w.write("Hello World!")  # {"value": 1003, "checksum": 2})
 
 
 # def initBasic(loop):
@@ -134,11 +134,11 @@ reset_arduino()
 loop = asyncio.get_event_loop()
 
 ac = SerialConnection(
-    readFormat="<BH",
-    writeFormat="<HB",
-    writeKeys=["value", "checksum"],
-    readKeys=["checksum", "value2"],
-    loop=loop,
+    # readFormat=None,  # "<BH",
+    # writeFormat="<HB",
+    # writeKeys=["value", "checksum"],
+    # readKeys=["checksum", "value2"],
+    # loop=loop,
 )
 
 
