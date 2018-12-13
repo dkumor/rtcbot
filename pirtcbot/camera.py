@@ -10,7 +10,7 @@ import numpy as np
 
 class FrameSubscription:
     """
-    A FrameSubscription gives asynchronous access to video frames. It is returned by `CVCamera`, and allows 
+    A FrameSubscription gives asynchronous access to video frames. It is returned by `CVCamera`.
     """
 
     def __init__(self, cvcamera):
