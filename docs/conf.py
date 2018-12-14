@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.abspath("../"))
 
 # -- Project information -----------------------------------------------------
 
-project = "pirtcbot"
+project = "PiRTCBot"
 copyright = "2018, Daniel Kumor"
 author = "Daniel Kumor"
 
@@ -52,9 +52,12 @@ templates_path = ["_templates"]
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
-#
-# source_suffix = ['.rst', '.md']
-source_suffix = ".rst"
+
+source_parsers = {".md": "recommonmark.parser.CommonMarkParser"}
+
+
+source_suffix = [".rst", ".md"]
+# source_suffix = ".rst"
 
 # The master toctree document.
 master_doc = "index"
@@ -184,3 +187,4 @@ epub_exclude_files = ["search.html"]
 
 # If true, `todo` and `todoList` produce output, else they produce nothing.
 todo_include_todos = True
+

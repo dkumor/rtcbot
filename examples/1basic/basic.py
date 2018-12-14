@@ -1,28 +1,12 @@
-import asyncio
 from aiohttp import web
-import pirtcbot
-
 from aiortc import RTCPeerConnection, RTCSessionDescription
 
 routes = web.RouteTableDef()
-dchannel = None
-
-
-def on_message(m):
-    print("Got message", m)
-    dchannel.send(m)
-
-
-def on_datachannel(channel):
-    global dchannel
-    dchannel = channel
-    print("Got data channel")
-    channel.on("message", on_message)
 
 
 @routes.get("/")
 async def index(request):
-    with open("example1.html", "r") as f:
+    with open("basic.html", "r") as f:
         return web.Response(content_type="text/html", text=f.read())
 
 
@@ -42,6 +26,21 @@ async def setupRTC(request):
     return web.json_response(
         {"sdp": pc.localDescription.sdp, "type": pc.localDescription.type}
     )
+
+
+mychannel = None
+
+
+def on_datachannel(channel):
+    global mychannel
+    mychannel = channel
+    print("Got data channel")
+    mychannel.on("message", on_message)
+
+
+def on_message(m):
+    print("Got message", m)
+    mychannel.send(m)  # Send it back
 
 
 app = web.Application()
