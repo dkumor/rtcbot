@@ -1,9 +1,10 @@
 Welcome to PiRTCBot's documentation!
 ====================================
 
+PiRTCBot's purpose is to provide a set of tutorials and simple modules that help in developing remote-controlled robots in Python, with a focus on the Raspberry Pi.
 
-PiRTCBot's purpose is to provide simple examples of code for real-time remote control, from a basic connection between a Raspberry Pi and Browser,
-through a video-streaming robot controlled entirely over a 4G mobile connection,
+The tutorials start from a basic connection between a Raspberry Pi and Browser, and encompass
+creating a video-streaming robot controlled entirely over a 4G mobile connection,
 all the way to a powerful system that offloads complex computation to a desktop PC in real-time.
 
 All communication happens through `WebRTC <https://en.wikipedia.org/wiki/WebRTC>`_, 
