@@ -18,9 +18,7 @@
       async function setupRTC() {
         console.log("Setting up a real-time connection to the server");
 
-        conn = new RTCPeerConnection({
-          iceServers: [{ urls: ["stun:stun.l.google.com:19302"] }]
-        });
+        conn = new RTCPeerConnection();
         dataChannel = conn.createDataChannel("mychannel");
         dataChannel.onmessage = dataChannelMessage;
 
