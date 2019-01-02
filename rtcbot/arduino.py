@@ -53,7 +53,7 @@ class SerialConnection(asyncio.Protocol):
 
         self.incomingMessageBuffer = bytes()
 
-        self.log = logging.getLogger("pirtcbot.SerialConnection")
+        self.log = logging.getLogger("rtcbot.SerialConnection")
 
         ser = serial.serial_for_url(url, baudrate=baudrate)
 

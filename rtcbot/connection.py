@@ -10,7 +10,7 @@ class RTCConnection:
     A very basic helper class to make initializing RTC connections easier
     """
 
-    _log = logging.getLogger("pirtcbot.RTCConnection")
+    _log = logging.getLogger("rtcbot.RTCConnection")
 
     def __init__(self, onMessage=None, defaultOrdered=True):
         self._dataChannels = {}

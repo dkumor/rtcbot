@@ -1,12 +1,12 @@
 ===================
-Camera
+RTC Connection
 ===================
 
 
 API
 ++++++++++++++++
 
-.. automodule:: rtcbot.camera
+.. automodule:: rtcbot.connection
     :members:
     :undoc-members:
     :show-inheritance:

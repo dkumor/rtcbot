@@ -18,7 +18,7 @@ Basic Communication
 Assuming that you have connected the Pi to an Arduino with a USB cable, you can read and write to the serial port as follows::
 
     import asyncio
-    from pirtcbot.arduino import SerialConnection
+    from rtcbot.arduino import SerialConnection
 
     conn = SerialConnection("/dev/ttyAMA1")
 
@@ -177,7 +177,7 @@ The above can be demonstrated with a full example that sends and receives messag
 The above code echoes the values sent to it, with value1 and value2 switched. The python code to read it is::
 
     import asyncio
-    from pirtcbot.arduino import SerialConnection
+    from rtcbot.arduino import SerialConnection
 
     loop = asyncio.get_event_loop()
 
@@ -216,7 +216,7 @@ Running this program, you get::
 API
 ===========================
 
-.. automodule:: pirtcbot.arduino
+.. automodule:: rtcbot.arduino
     :members:
     :undoc-members:
     :show-inheritance:

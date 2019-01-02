@@ -1,9 +1,9 @@
 const RTCConnection_ =
   typeof RTCConnection == "undefined"
-    ? require("../pirtcbot/pirtcbot").RTCConnection
+    ? require("../rtcbot/rtcbot").RTCConnection
     : RTCConnection;
 const Queue_ =
-  typeof Queue == "undefined" ? require("../pirtcbot/pirtcbot").Queue : Queue;
+  typeof Queue == "undefined" ? require("../rtcbot/rtcbot").Queue : Queue;
 
 const assert =
   typeof chai == "undefined" ? require("chai").assert : chai.assert;

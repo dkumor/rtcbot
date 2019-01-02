@@ -1,7 +1,7 @@
-Welcome to PiRTCBot's documentation!
+Welcome to RTCBot's documentation!
 ====================================
 
-PiRTCBot's purpose is to provide a set of tutorials and simple modules that help in developing remote-controlled robots in Python, with a focus on the Raspberry Pi.
+RTCBot's purpose is to provide a set of tutorials and simple modules that help in developing remote-controlled robots in Python, with a focus on the Raspberry Pi.
 
 The tutorials start from a basic connection between a Raspberry Pi and Browser, and encompass
 creating a video-streaming robot controlled entirely over a 4G mobile connection,
@@ -17,9 +17,6 @@ even when it is not connected to your local network.
 
    examples/index
    API
-
-.. automodule:: pirtcbot
-   :members:
 
 Indices and tables
 ==================

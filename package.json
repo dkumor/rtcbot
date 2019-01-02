@@ -1,8 +1,8 @@
 {
-  "name": "pirtcbot",
+  "name": "rtcbot",
   "version": "0.0.1",
   "description": "Library for building robots controlled over WebRTC.",
-  "main": "pirtcbot/pirtcbot.js",
+  "main": "rtcbot/rtcbot.js",
   "directories": {
     "doc": "docs",
     "example": "examples",
@@ -13,7 +13,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git@git.dkumor.com:dkumor/PiRTCBot.git"
+    "url": "git@git.dkumor.com:dkumor/RTCBot.git"
   },
   "keywords": [
     "WebRTC",

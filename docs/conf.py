@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.abspath("../"))
 
 # -- Project information -----------------------------------------------------
 
-project = "PiRTCBot"
+project = "RTCBot"
 copyright = "2018, Daniel Kumor"
 author = "Daniel Kumor"
 
@@ -110,7 +110,7 @@ html_static_path = ["_static"]
 # -- Options for HTMLHelp output ---------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = "pirtcbotdoc"
+htmlhelp_basename = "rtcbotdoc"
 
 
 # -- Options for LaTeX output ------------------------------------------------
@@ -134,7 +134,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, "pirtcbot.tex", "pirtcbot Documentation", "Daniel Kumor", "manual")
+    (master_doc, "rtcbot.tex", "RTCBot Documentation", "Daniel Kumor", "manual")
 ]
 
 
@@ -142,7 +142,7 @@ latex_documents = [
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [(master_doc, "pirtcbot", "pirtcbot Documentation", [author], 1)]
+man_pages = [(master_doc, "rtcbot", "RTCBot Documentation", [author], 1)]
 
 
 # -- Options for Texinfo output ----------------------------------------------
@@ -153,10 +153,10 @@ man_pages = [(master_doc, "pirtcbot", "pirtcbot Documentation", [author], 1)]
 texinfo_documents = [
     (
         master_doc,
-        "pirtcbot",
-        "pirtcbot Documentation",
+        "rtcbot",
+        "rtcbot Documentation",
         author,
-        "pirtcbot",
+        "rtcbot",
         "One line description of project.",
         "Miscellaneous",
     )

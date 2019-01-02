@@ -101,7 +101,7 @@ class CVCamera:
     def _capture_thread(self):
         import cv2
 
-        log = logging.getLogger("pirtcbot.CVCamera")
+        log = logging.getLogger("rtcbot.CVCamera")
 
         log.debug("Started camera thread")
         cap = cv2.VideoCapture(self.cameranumber)
@@ -194,7 +194,7 @@ class PiCamera(CVCamera):
     """
 
     def _capture_thread(self):
-        log = logging.getLogger("pirtcbot.PiCamera")
+        log = logging.getLogger("rtcbot.PiCamera")
         import picamera
 
         with picamera.PiCamera() as cam:
