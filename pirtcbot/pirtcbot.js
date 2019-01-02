@@ -1,20 +1,46 @@
 "use strict";
-/**
- * A class mirroring pirtcbot's RTCConnection to simplify setting up a bidirectional connection
- * between Python and the browser.
- */
+
+// We want the library to work in node too, but it doesn't contain webrtc!
+// We therefore conditionally require wrtc.
+const _RTCPeerConnection =
+  typeof RTCPeerConnection != "undefined"
+    ? RTCPeerConnection
+    : require("wrtc").RTCPeerConnection;
 
 class RTCConnection {
+  /**
+   * RTCConnection mirrors the Python RTCConnection in API. Whatever differences in functionality
+   * that may exist can be considered bugs unless explictly documented as such.
+   *
+   * For detailed documentation, see the RTCConnection docs for Python.
+   *
+   * @param {*} onMessage
+   * @param {*} defaultOrdered
+   * @param {*} options
+   */
   constructor(
     onMessage = null,
+    defaultOrdered = true,
     options = {
       iceServers: [{ urls: ["stun:stun.l.google.com:19302"] }]
     }
   ) {
-    this._datachannels = {};
+    this._dataChannels = {};
 
-    this._rtc = new RTCPeerConnection(options);
+    if (onMessage != null) {
+      this._msgcallback = onMessage;
+    } else {
+      this._msgcallback = (channel, msg) => console.log(channel.label, msg);
+    }
+
+    this._rtc = new _RTCPeerConnection(options);
+    this._rtc.ondatachannel = this._onDataChannel.bind(this);
+    this._rtc.ontrack = this._onTrack.bind(this);
+
     this._hasRemoteDescription = false;
+    this._defaultChannel = null;
+    this._defaultOrdered = defaultOrdered;
+    this.__queuedMessages = [];
   }
 
   async _waitForICECandidates() {
@@ -43,26 +69,36 @@ class RTCConnection {
     if (this._hasRemoteDescription || description != null) {
       // This means that we received an offer - either the remote description
       // was already set, or we were passed in a description. In either case,
-      // instead of initializing, we prepare a response
+      // instead of initializing a new connection, we prepare a response
       if (!this._hasRemoteDescription) {
         await this.setRemoteDescription(description);
       }
-      await this._waitForICECandidates();
-      answer = await this._rtc.createAnswer();
+      let answer = await this._rtc.createAnswer();
       await this._rtc.setLocalDescription(answer);
+      await this._waitForICECandidates();
       return {
         sdp: this._rtc.localDescription.sdp,
         type: this._rtc.localDescription.type
       };
     }
 
-    // This means that we are the ones intializing the connection.
-    // We get all the ways that the remote peer can connect to us, and return the
-    // local description
-    offer = await this._rtc.createOffer();
+    // There was no remote description, which means that we are intitializing
+    // the connection.
+
+    // Before starting init, we create a default data channel for the connection
+    this._defaultChannel = this._rtc.createDataChannel("default", {
+      ordered: this._defaultOrdered
+    });
+    this._defaultChannel.onmessage = this._onMessage.bind(
+      this,
+      this._defaultChannel
+    );
+    this._defaultChannel.onopen = this._sendQueuedMessages.bind(this);
+
+    let offer = await this._rtc.createOffer();
     await this._rtc.setLocalDescription(offer);
-    // the python side does not support asynchronous ICE setup, so we wait until all ICE candidates are
-    // ready before trying to connect
+    // For simplicity of the API, we wait until all ICE candidates are
+    // ready before trying to connect, instead of doing asynchronous signaling.
     await this._waitForICECandidates();
     return this._rtc.localDescription;
   }
@@ -70,4 +106,86 @@ class RTCConnection {
     await this._rtc.setRemoteDescription(description);
     this._hasRemoteDescription = true;
   }
+
+  _sendQueuedMessages() {
+    //console.log("sending queued messages", this._defaultChannel);
+    if (this.__queuedMessages.length > 0) {
+      for (let i = 0; i < this.__queuedMessages.length; i++) {
+        //console.log("Sending", this._defaultChannel, this.__queuedMessages[i]);
+        this._defaultChannel.send(this.__queuedMessages[i]);
+      }
+      this.__queuedMessages = [];
+    }
+  }
+
+  _onDataChannel(channel) {
+    //console.log(channel);
+    channel = channel.channel;
+    channel.onmessage = this._onMessage.bind(this, channel);
+    if (channel.label == "default") {
+      this._defaultChannel = channel;
+      channel.onopen = () => this._sendQueuedMessages();
+    } else {
+      channel.onopen = () => (this._dataChannels[channel.label] = channel);
+    }
+  }
+  _onTrack(track) {}
+  _onMessage(channel, message) {
+    //console.log("got message", message);
+    this._msgcallback(channel, message.data);
+  }
+  onMessage(callback) {
+    this._msgcallback = callback;
+  }
+  send(msg) {
+    if (
+      this._defaultChannel != null &&
+      this._defaultChannel.readyState == "open"
+    ) {
+      this._defaultChannel.send(msg);
+    } else {
+      this.__queuedMessages.push(msg);
+    }
+  }
+  async close() {
+    for (let chan in this._dataChannels) {
+      chan.close();
+    }
+    if (this._defaultChannel != null) {
+      this._defaultChannel.close();
+    }
+    await this._rtc.close();
+  }
+}
+
+class Queue {
+  /**
+   * A simple async queue. Useful for converting callbacks into async operations.
+   * The API imitates Python's asyncio.Queue, making it easy to avoid callback hell
+   */
+  constructor() {
+    this._waiting = [];
+    this._enqueued = [];
+  }
+  put(elem) {
+    this._enqueued.push(elem);
+    if (this._waiting.length > 0) {
+      this._waiting.shift()(this._enqueued.shift());
+    }
+  }
+
+  async get() {
+    if (this._enqueued.length > 0) {
+      return this._enqueued.shift();
+    }
+    let tempthis = this;
+    return new Promise(function(resolve, reject) {
+      tempthis._waiting.push(resolve);
+    });
+  }
+}
+
+if (typeof module != "undefined") {
+  // Make it a module for use in node.
+  module.exports = { RTCConnection, Queue };
 }
