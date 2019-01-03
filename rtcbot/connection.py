@@ -1,8 +1,25 @@
 
-from aiortc import RTCPeerConnection, RTCSessionDescription
+from aiortc import RTCPeerConnection, RTCSessionDescription, VideoStreamTrack
+from av import VideoFrame
 from functools import partial
 
 import logging
+
+
+class _VideoSender(VideoStreamTrack):
+    def __init__(self, frameSubscription):
+        super().__init__()
+        self._frameSubscription = frameSubscription
+
+    async def recv(self):
+        pts, time_base = await self.next_timestamp()
+
+        img = await self._frameSubscription.get()
+
+        new_frame = VideoFrame.from_ndarray(img, format="bgr24")
+        new_frame.pts = pts
+        new_frame.time_base = time_base
+        return new_frame
 
 
 class RTCConnection:
@@ -127,11 +144,21 @@ class RTCConnection:
             self._defaultChannel.close()
         await self._rtc.close()
 
-    # def addVideo(self, frameSubscription):
-    #     """
-    #     Add video to the connection.
+    def addVideo(self, frameSubscription):
+        """
+        Add video to the connection. This should be called before `getLocalDescription` is
+        called, so that the video stream is set up correctly.
 
-    #     """
+        Accepts any object where `await frameSubscription.get()` returns a bgr opencv frame::
+
+            cam = CVCamera()
+            conn = RTCConnection()
+            conn.addVideo(cam.subscribe())
+
+            ...
+
+        """
+        self._rtc.addTrack(_VideoSender(frameSubscription))
 
     # @property
     # def video(self):

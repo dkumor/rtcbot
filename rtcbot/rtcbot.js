@@ -33,6 +33,8 @@ class RTCConnection {
       this._msgcallback = (channel, msg) => console.log(channel.label, msg);
     }
 
+    this._videocallback = null;
+
     this._rtc = new _RTCPeerConnection(options);
     this._rtc.ondatachannel = this._onDataChannel.bind(this);
     this._rtc.ontrack = this._onTrack.bind(this);
@@ -95,7 +97,9 @@ class RTCConnection {
     );
     this._defaultChannel.onopen = this._sendQueuedMessages.bind(this);
 
-    let offer = await this._rtc.createOffer();
+    let offer = await this._rtc.createOffer({
+      offerToReceiveVideo: this._videocallback != null
+    });
     await this._rtc.setLocalDescription(offer);
     // For simplicity of the API, we wait until all ICE candidates are
     // ready before trying to connect, instead of doing asynchronous signaling.
@@ -129,13 +133,19 @@ class RTCConnection {
       channel.onopen = () => (this._dataChannels[channel.label] = channel);
     }
   }
-  _onTrack(track) {}
+  _onTrack(track) {
+    console.log("got track", track);
+    this._videocallback(track.streams[0]);
+  }
   _onMessage(channel, message) {
     //console.log("got message", message);
     this._msgcallback(channel, message.data);
   }
   onMessage(callback) {
     this._msgcallback = callback;
+  }
+  onVideo(callback) {
+    this._videocallback = callback;
   }
   send(msg) {
     if (
