@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.abspath("../"))
 # -- Project information -----------------------------------------------------
 
 project = "RTCBot"
-copyright = "2018, Daniel Kumor"
+copyright = "2019, Daniel Kumor"
 author = "Daniel Kumor"
 
 # The short X.Y version
@@ -45,7 +45,9 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.viewcode",
     "sphinx.ext.githubpages",
+    "sphinx_js",
 ]
+js_source_path = "../rtcbot/"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]

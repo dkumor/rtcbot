@@ -150,15 +150,26 @@ class RTCConnection:
         called, so that the video stream is set up correctly.
 
         Accepts any object where `await frameSubscription.get()` returns a bgr opencv frame::
-
+        
             cam = CVCamera()
             conn = RTCConnection()
             conn.addVideo(cam.subscribe())
 
-            ...
+        Note that if adding video when receiving a remote offer, the RTCConnection only adds the video
+        stream if the remote connection explicitly requests a video stream. 
 
+        The `get()` function will only be called if the video stream is requested, so it is possible to only start
+        video capture on first call of `get()`.
         """
         self._rtc.addTrack(_VideoSender(frameSubscription))
+
+    def addAudio(self, audioSubscription, sampleRate=48000, format="s16"):
+        """
+        Add audio to the connection. Just like the video subscription, `await audioSubscription.get()` should
+        give a numpy array of raw audio samples, with the given sample rate, and given format.
+
+        """
+        pass
 
     # @property
     # def video(self):

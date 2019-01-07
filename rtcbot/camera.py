@@ -1,8 +1,5 @@
 import threading
-
 import asyncio
-
-
 import logging
 import time
 import numpy as np
@@ -13,19 +10,22 @@ from .subscriptions import BaseSubscriptionHandler, MostRecentSubscription
 class CVCamera(BaseSubscriptionHandler):
     """
     Uses a camera supported by OpenCV. 
+
+    When initializing, can give an optional function which preprocesses frames as they are read, and returns the
+    modified versions thereof. Please note that the preprocessing happens synchronously in the camera capture thread,
+    so any processing should be relatively fast, and should avoid pure python code due to the GIL. Numpy and openCV functions
+    should be OK.
     """
 
     def __init__(
-        self, width=320, height=240, cameranumber=0, fps=30, preprocessframe=lambda x: x
+        self,
+        width=320,
+        height=240,
+        cameranumber=0,
+        fps=30,
+        preprocessframe=lambda x: x,
+        loop=None,
     ):
-        """
-        Runs the camera. 
-        
-        Can give an optional function which preprocesses frames as they are read, and returns the
-        modified versions thereof. Please note that the preprocessing happens synchronously in the reader thread,
-        so any processing should be relatively fast, and should avoid pure python code due to the GIL. Numpy and openCV functions
-        should be OK.
-        """
         super().__init__(MostRecentSubscription)
 
         self._width = width
@@ -33,23 +33,21 @@ class CVCamera(BaseSubscriptionHandler):
         self._cameranumber = cameranumber
         self._fps = fps
         self._processframe = preprocessframe
-        self._closed = False
 
-        self._frameReadyEvent = asyncio.Event()
-        self._frameLock = threading.Lock()
-        self._frame = None
-
-        self._loop = asyncio.get_event_loop()
-
-        # Schedule the event handler. Should be changed to create_task when the pi updates to python 3.7
-        self._handler = self._loop.create_task(self.__eventhandler())
+        self._loop = loop
+        if self._loop is None:
+            self._loop = asyncio.get_event_loop()
 
         # Start the camera stream in the background
-        self._camerathread = threading.Thread(target=self._capture_thread)
-        self._camerathread.daemon = True
-        self._camerathread.start()
+        self._workerThread = threading.Thread(target=self._captureWorker)
+        self._workerThread.daemon = True
+        self._workerThread.start()
+        self._shouldCloseWorkerThread = False
 
-    def _capture_thread(self):
+    def _captureWorker(self):
+        """
+        Runs the actual frame capturing code.
+        """
         import cv2
 
         log = logging.getLogger("rtcbot.CVCamera")
@@ -70,7 +68,7 @@ class CVCamera(BaseSubscriptionHandler):
 
         t = time.time()
         i = 0
-        while not self._closed:
+        while not self._shouldCloseWorkerThread:
             ret, frame = cap.read()
             if not ret:
                 log.error(f"CV read error {ret}")
@@ -78,15 +76,8 @@ class CVCamera(BaseSubscriptionHandler):
                 # This optional function is given by the user. default is identity x->x
                 frame = self._processframe(frame)
 
-                with self._frameLock:
-                    self._frame = frame
-
-                # This code has a technical weakness, where under high load the handler could
-                # pick up the next frame here, when it should have picked up the previous frame.
-                # It would then have the frameReadyEvent set again for the same frame it just got.
-
-                # Set the frame arrival event
-                self._loop.call_soon_threadsafe(self._frameReadyEvent.set)
+                # Send the frame to all subscribers
+                self._loop.call_soon_threadsafe(self._put_nowait, frame)
 
                 i += 1
                 if time.time() > t + 1:
@@ -95,20 +86,6 @@ class CVCamera(BaseSubscriptionHandler):
                     t = time.time()
         cap.release()
         log.debug("Closing camera capture")
-
-    async def __eventhandler(self):
-        """
-        As frames arrive from the camera thread, we send out the events for all subscribed 
-        objects. While this is technically an extra level of indirection, it is useful for enabling
-        the frames to go to multiple destinations, allowing each destination to not worry about the others.
-        """
-        while not self._closed:
-            # Get the frame coming from the thread
-            await self._frameReadyEvent.wait()
-            self._frameReadyEvent.clear()
-
-            # Wake all the subscribers to the frame
-            self._put_nowait(self._frame)
 
     def subscribe(self, subscription=None):
         """
@@ -135,16 +112,15 @@ class CVCamera(BaseSubscriptionHandler):
             subs = cam.subscribe(asyncio.Queue()) # asyncio queue has a put_nowait method
             await subs.get()
         """
-        if subscription is None:
-            subscription = MostRecentSubscription()
+        # This function actually only exists for the docstring. It uses the superclass function.
         return super().subscribe(subscription)
 
     def close(self):
         """
         Closes capture on the camera, and waits until the camera capture thread joins
         """
-        self._closed = True
-        self._camerathread.join()
+        self._shouldCloseWorkerThread = True
+        self._workerThread.join()
 
 
 class PiCamera(CVCamera):
@@ -163,7 +139,7 @@ class PiCamera(CVCamera):
     This enables simple drop-in replacement between the two.
     """
 
-    def _capture_thread(self):
+    def _captureWorker(self):
         log = logging.getLogger("rtcbot.PiCamera")
         import picamera
 
@@ -175,7 +151,7 @@ class PiCamera(CVCamera):
 
             t = time.time()
             i = 0
-            while not self._closed:
+            while not self._shouldCloseWorkerThread:
                 # https://picamera.readthedocs.io/en/release-1.13/recipes2.html#capturing-to-an-opencv-object
                 frame = np.empty((self._width * self._height * 3,), dtype=np.uint8)
                 cam.capture(frame, "bgr", use_video_port=True)
@@ -184,15 +160,8 @@ class PiCamera(CVCamera):
                 # This optional function is given by the user. default is identity x->x
                 frame = self._processframe(frame)
 
-                with self._frameLock:
-                    self._frame = frame
-
-                # This code has a technical weakness, where under high load the handler could
-                # pick up the next frame here, when it should have picked up the previous frame.
-                # It would then have the frameReadyEvent set again for the same frame it just got.
-
                 # Set the frame arrival event
-                self._loop.call_soon_threadsafe(self._frameReadyEvent.set)
+                self._loop.call_soon_threadsafe(self._put_nowait, frame)
 
                 i += 1
                 if time.time() > t + 1:
