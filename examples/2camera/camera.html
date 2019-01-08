@@ -5,7 +5,7 @@
     <script src="rtcbot/rtcbot.js"></script>
   </head>
   <body style="text-align: center;padding-top: 30px;">
-    <video autoplay playsinline></video>
+    <video autoplay playsinline></video> <audio autoplay></audio>
     <p>
       Open the browser's developer tools to see console messages (CTRL+SHIFT+C)
     </p>
@@ -19,6 +19,9 @@
       conn.onVideo(
         stream => (document.querySelector("video").srcObject = stream)
       );
+      conn.onAudio(
+        stream => (document.querySelector("audio").srcObject = stream)
+      );
 
       // Here we set up the connection. We put it in an async function, since we will be
       // waiting for results from the server (Promises).
@@ -27,6 +30,7 @@
 
         // Get the information needed to connect from the server to the browser
         let offer = await conn.getLocalDescription();
+        console.log("offer", offer.sdp);
 
         // POST the information to the server, which will respond with the corresponding remote
         // connection's description
@@ -37,7 +41,9 @@
         });
 
         // Set the remote server's information
-        await conn.setRemoteDescription(await response.json());
+        resp = await response.json();
+        console.log("response", resp.sdp);
+        await conn.setRemoteDescription(resp);
 
         console.log("Setup Finished");
       }

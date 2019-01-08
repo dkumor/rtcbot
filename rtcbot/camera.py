@@ -17,6 +17,8 @@ class CVCamera(BaseSubscriptionHandler):
     should be OK.
     """
 
+    _log = logging.getLogger("rtcbot.CVCamera")
+
     def __init__(
         self,
         width=320,
@@ -26,7 +28,7 @@ class CVCamera(BaseSubscriptionHandler):
         preprocessframe=lambda x: x,
         loop=None,
     ):
-        super().__init__(MostRecentSubscription)
+        super().__init__(MostRecentSubscription, self._log)
 
         self._width = width
         self._height = height
@@ -50,9 +52,7 @@ class CVCamera(BaseSubscriptionHandler):
         """
         import cv2
 
-        log = logging.getLogger("rtcbot.CVCamera")
-
-        log.debug("Started camera thread")
+        self._log.debug("Started camera thread")
         cap = cv2.VideoCapture(self._cameranumber)
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._width)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._height)
@@ -60,18 +60,18 @@ class CVCamera(BaseSubscriptionHandler):
 
         ret, frame = cap.read()
         if not ret:
-            log.error(f"Camera Read Failed {ret}")
+            self._log.error(f"Camera Read Failed {ret}")
             cap.release()
             return
         else:
-            log.debug("Camera Ready")
+            self._log.debug("Camera Ready")
 
         t = time.time()
         i = 0
         while not self._shouldCloseWorkerThread:
             ret, frame = cap.read()
             if not ret:
-                log.error(f"CV read error {ret}")
+                self._log.error(f"CV read error {ret}")
             else:
                 # This optional function is given by the user. default is identity x->x
                 frame = self._processframe(frame)
@@ -81,19 +81,19 @@ class CVCamera(BaseSubscriptionHandler):
 
                 i += 1
                 if time.time() > t + 1:
-                    log.debug(f" {i} fps")
+                    self._log.debug(f" {i} fps")
                     i = 0
                     t = time.time()
         cap.release()
-        log.debug("Closing camera capture")
+        self._log.debug("Closing camera capture")
 
     def subscribe(self, subscription=None):
         """
         Subscribe to new frames as they come in. By default returns a MostRecentSubscription object, which can be awaited
         to get the most recent frame, and skips missed frames.
 
-        Note that all subscribers get the same object,
-        so if you are going to modify the values of the frame itself, please do so in a copy!::
+        Note that all subscribers get the same frame data numpy array,
+        so if you are going to modify the values of the array itself, please do so in a copy!::
 
             # Set up a camera and subscribe to new frames
             cam = CVCamera()
@@ -139,15 +139,16 @@ class PiCamera(CVCamera):
     This enables simple drop-in replacement between the two.
     """
 
+    _log = logging.getLogger("rtcbot.PiCamera")
+
     def _captureWorker(self):
-        log = logging.getLogger("rtcbot.PiCamera")
         import picamera
 
         with picamera.PiCamera() as cam:
             cam.resolution = (self._width, self._height)
             cam.framerate = self._fps
             time.sleep(2)  # Why is this needed?
-            log.debug("PiCamera Ready")
+            self._log.debug("PiCamera Ready")
 
             t = time.time()
             i = 0
@@ -168,4 +169,4 @@ class PiCamera(CVCamera):
                     log.debug(f" {i} fps")
                     i = 0
                     t = time.time()
-        log.debug("Closing camera capture")
+        self._log.debug("Closing camera capture")

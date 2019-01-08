@@ -1,13 +1,21 @@
 import asyncio
 
 from functools import partial
+import logging
 
 
 class BaseSubscriptionHandler:
-    def __init__(self, defaultSubscriptionClass):
+    def __init__(self, defaultSubscriptionClass, logger=None):
         self.__subscriptions = set()
-        self.__defaultSubscriptionType = defaultSubscriptionClass
+        self.__defaultSubscriptionClass = defaultSubscriptionClass
         self.__defaultSubscription = None
+
+        if logger is None:
+            self.__shlog = logging.getLogger(self.__class__.__name__).getChild(
+                "SubscriptionHandler"
+            )
+        else:
+            self.__shlog = logger.getChild("SubscriptionHandler")
 
     def subscribe(self, subscription=None):
         """
@@ -18,11 +26,13 @@ class BaseSubscriptionHandler:
             subscription = self.__defaultSubscriptionClass()
             if subscription is None:
                 raise Exception("No subscription given!")
+        self.__shlog.debug("Added subscription %s", subscription)
         self.__subscriptions.add(subscription)
         return subscription
 
     def _put_nowait(self, element):
         for s in self.__subscriptions:
+            self.__shlog.debug("Inserted Data")
             s.put_nowait(element)
 
     def unsubscribe(self, subscription=None):
@@ -37,10 +47,16 @@ class BaseSubscriptionHandler:
         """
         if subscription is None:
             if self.__defaultSubscription is not None:
+                self.__shlog.debug("Removing default subscription")
                 self.unsubscribe(self.__defaultSubscription)
                 self.__defaultSubscription = None
-            # Otherwise, do nothing
+            else:
+                # Otherwise, do nothing
+                self.__shlog.debug(
+                    "Unsubscribe called, but no default subscription is active. Doing nothing."
+                )
         else:
+            self.__shlog.debug("Removing subscription %s", subscription)
             self.__subscriptions.remove(subscription)
 
     def unsubscribeAll(self):
@@ -74,6 +90,9 @@ class BaseSubscriptionHandler:
         """
         if self.__defaultSubscription is None:
             self.__defaultSubscription = self.subscribe()
+            self.__shlog.debug(
+                "Created default subscription %s", self.__defaultSubscription
+            )
 
         return await self.__defaultSubscription.get()
 
@@ -141,3 +160,64 @@ class CallbackSubscription:
         # We don't want to stall the event loop at this moment - we call it soon enough.
         self._loop.call_soon(partial(self._callback, element))
 
+
+class DelayedSubscription:
+    """
+    In some instances, you want to subscribe to something, but don't actually want to start
+    gathering the data until the data is needed.
+
+    This is especially common in something like audio streaming: if you were to subscribe
+    to an audio stream right now, and get() the data only after a certain time, then there would be a
+    large audio delay, because by default the audio subscription queues data. 
+    
+    This is common in the audio of an RTCConnection, where `get` is called only
+    once the connection is established::
+
+        s = Microphone().subscribe()
+        conn = RTCConnection()
+        conn.addAudio(s) # Big audio delay!
+
+    Instead, what you want to do is delay subscribing until `get` is called the first time, which would
+    wait until the connection is ready to start sending data::
+
+        s = DelayedSubscription(Microphone())
+        conn = RTCConnection()
+        conn.addAudio(s) # Calls Microphone.subscribe() on first get()
+
+    One caveat is that calling `unsubscribe` will not work on the DelayedSubscription - you must use
+    unsubscribe as given in the DelayedSubscription! That means::
+
+        m = Microphone()
+        s = DelayedSubscription(m)
+        m.unsubscribe(s) # ERROR!
+
+        s.unsubscribe() # correct!
+
+    Parameters
+    ----------
+        subscriptionHandler: BaseSubscriptionHandler
+            An object with a subscribe method
+        subscription: (optional)
+            The subscription to subscribe. If given, calls `subscriptionHandler.subscribe(subscription)`
+    
+    """
+
+    def __init__(self, subscriptionHandler, subscription=None):
+        self.subscriptionHandler = subscriptionHandler
+        self.subscription = subscription
+        self._wasInitialized = False
+
+    def unsubscribe(self):
+        if self.subscription is not None:
+            self.subscriptionHandler.unsubscribe(self.subscription)
+        self._wasInitialized = True
+
+    async def get(self):
+        if not self._wasInitialized:
+            self.subscription = self.subscriptionHandler.subscribe(self.subscription)
+            self._wasInitialized = True
+        if self.subscription is None:
+            raise AttributeError(
+                "DelayedSubscription.subscription is None - this means that you did not pass a subscription object, and unsubscribed before one was created!"
+            )
+        await self.subscription.get()

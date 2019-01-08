@@ -34,6 +34,7 @@ class RTCConnection {
     }
 
     this._videocallback = null;
+    this._audiocallback = null;
 
     this._rtc = new _RTCPeerConnection(options);
     this._rtc.ondatachannel = this._onDataChannel.bind(this);
@@ -46,6 +47,7 @@ class RTCConnection {
   }
 
   async _waitForICECandidates() {
+    // https://muaz-khan.blogspot.com/2015/01/disable-ice-trickling.html
     const conn = this._rtc;
     // Waits until the connection has finished gathering ICE candidates
     await new Promise(function(resolve) {
@@ -98,7 +100,8 @@ class RTCConnection {
     this._defaultChannel.onopen = this._sendQueuedMessages.bind(this);
 
     let offer = await this._rtc.createOffer({
-      offerToReceiveVideo: this._videocallback != null
+      offerToReceiveVideo: this._videocallback != null,
+      offerToReceiveAudio: this._audiocallback != null
     });
     await this._rtc.setLocalDescription(offer);
     // For simplicity of the API, we wait until all ICE candidates are
@@ -135,7 +138,16 @@ class RTCConnection {
   }
   _onTrack(track) {
     console.log("got track", track);
-    this._videocallback(track.streams[0]);
+    switch (track.track.kind) {
+      case "video":
+        this._videocallback(track.streams[0]);
+        break;
+      case "audio":
+        this._audiocallback(track.streams[0]);
+        break;
+      default:
+        console.error("Could not recognize track!");
+    }
   }
   _onMessage(channel, message) {
     //console.log("got message", message);
@@ -146,6 +158,9 @@ class RTCConnection {
   }
   onVideo(callback) {
     this._videocallback = callback;
+  }
+  onAudio(callback) {
+    this._audiocallback = callback;
   }
   send(msg) {
     if (
