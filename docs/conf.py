@@ -45,6 +45,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.viewcode",
     "sphinx.ext.githubpages",
+    "sphinxcontrib.asyncio",
     "sphinx_js",
 ]
 js_source_path = "../rtcbot/"

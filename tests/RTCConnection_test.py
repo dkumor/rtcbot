@@ -1,6 +1,6 @@
 import aiounittest
 import asyncio
-from pirtcbot import RTCConnection
+from rtcbot import RTCConnection
 import logging
 
 

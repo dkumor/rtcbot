@@ -10,5 +10,6 @@ from your camera in a way easily compatible with asyncio, or sending commands to
 
    rtcconnection
    camera
+   audio
    arduino
    javascript
