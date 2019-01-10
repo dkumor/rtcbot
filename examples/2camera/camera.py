@@ -26,7 +26,7 @@ async def setupRTC(request):
 
 
 cam = CVCamera()
-mic = Microphone(blocksize=960)
+mic = Microphone()
 routes.static("/rtcbot/", path="./rtcbot")
 app = web.Application()
 app.add_routes(routes)

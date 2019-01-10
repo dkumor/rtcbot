@@ -10,6 +10,7 @@ import time
 import asyncio
 
 import numpy as np
+from .subscriptions import RebatchSubscription
 
 
 class _VideoSender(VideoStreamTrack):
@@ -84,7 +85,9 @@ class _AudioSender(AudioStreamTrack):
     def __init__(self, audioSubscription, sampleRate=48000, canSkip=True):
         super().__init__()
         self._log = logging.getLogger("AudioSender")
-        self._audioSubscription = audioSubscription
+        self._audioSubscription = RebatchSubscription(
+            int(AUDIO_PTIME * sampleRate), axis=-1, subscription=audioSubscription
+        )
         self._sampleRate = sampleRate
         self._startTime = None
         self._sampleNumber = 0
