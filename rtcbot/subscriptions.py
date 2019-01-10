@@ -6,104 +6,6 @@ import logging
 from collections import deque
 
 
-class BaseSubscriptionHandler:
-    def __init__(self, defaultSubscriptionClass, logger=None):
-        self.__subscriptions = set()
-        self.__defaultSubscriptionClass = defaultSubscriptionClass
-        self.__defaultSubscription = None
-
-        if logger is None:
-            self.__shlog = logging.getLogger(self.__class__.__name__).getChild(
-                "SubscriptionHandler"
-            )
-        else:
-            self.__shlog = logger.getChild("SubscriptionHandler")
-
-    def subscribe(self, subscription=None):
-        """
-        Subscribes to new data as it comes in. There can be multiple independent
-        subscriptions active at the same time.
-        """
-        if subscription is None:
-            subscription = self.__defaultSubscriptionClass()
-            if subscription is None:
-                raise Exception("No subscription given!")
-        self.__shlog.debug("Added subscription %s", subscription)
-        self.__subscriptions.add(subscription)
-        return subscription
-
-    def _put_nowait(self, element):
-        for s in self.__subscriptions:
-            self.__shlog.debug("Inserted Data")
-            s.put_nowait(element)
-
-    def unsubscribe(self, subscription=None):
-        """
-        Removes the given subscription, so that it no longer gets updated::
-
-            subs = o.subscribe()
-            o.unsubscribe(subs)
-
-        If no argument is given, removes the default subscription created by `get()`.
-        If none exists, then does nothing.
-        """
-        if subscription is None:
-            if self.__defaultSubscription is not None:
-                self.__shlog.debug("Removing default subscription")
-                self.unsubscribe(self.__defaultSubscription)
-                self.__defaultSubscription = None
-            else:
-                # Otherwise, do nothing
-                self.__shlog.debug(
-                    "Unsubscribe called, but no default subscription is active. Doing nothing."
-                )
-        else:
-            self.__shlog.debug("Removing subscription %s", subscription)
-            self.__subscriptions.remove(subscription)
-
-    def unsubscribeAll(self):
-        """
-        Removes all currently active subscriptions, including the default one if it was intialized.
-        """
-        self.__subscriptions = set()
-        self.__defaultSubscription = None
-
-    async def get(self):
-        """
-        Same as `o.subscribe().get()`. On the first call, creates a default 
-        subscription, and all subsequent calls to `get()` use that subscription.
-
-        If `unsubscribe` is called, the subscription is deleted, so a subsequent call to `get`
-        will create a new one::
-
-            data = await o.get() # Creates subscription on first call
-            data = await o.get() # Same subscription
-            o.unsubscribe()
-            data2 = await o.get() # A new subscription
-
-        The above code is equivalent to the following::
-
-            defaultSubscription = o.subscribe()
-            data = await defaultSubscription.get()
-            data = await defaultSubscription.get()
-            o.unsubscribe(defaultSubscription)
-            newDefaultSubscription = o.subscribe()
-            data = await newDefaultSubscription.get()
-        """
-        if self.__defaultSubscription is None:
-            self.__defaultSubscription = self.subscribe()
-            self.__shlog.debug(
-                "Created default subscription %s", self.__defaultSubscription
-            )
-
-        return await self.__defaultSubscription.get()
-
-
-class SubscriptionHandler(BaseSubscriptionHandler):
-    def put_nowait(self, element):
-        self._put_nowait(element)
-
-
 class MostRecentSubscription:
     """
     The MostRecentSubscription always returns the most recently added element.
@@ -197,32 +99,32 @@ class DelayedSubscription:
 
     Parameters
     ----------
-        subscriptionHandler: BaseSubscriptionHandler
+        SubscriptionWriter: BaseSubscriptionWriter
             An object with a subscribe method
         subscription: (optional)
-            The subscription to subscribe. If given, calls `subscriptionHandler.subscribe(subscription)`
+            The subscription to subscribe. If given, calls `SubscriptionWriter.subscribe(subscription)`
     
     """
 
-    def __init__(self, subscriptionHandler, subscription=None):
-        self.subscriptionHandler = subscriptionHandler
+    def __init__(self, SubscriptionWriter, subscription=None):
+        self.SubscriptionWriter = SubscriptionWriter
         self.subscription = subscription
         self._wasInitialized = False
 
     def unsubscribe(self):
         if self.subscription is not None:
-            self.subscriptionHandler.unsubscribe(self.subscription)
+            self.SubscriptionWriter.unsubscribe(self.subscription)
         self._wasInitialized = True
 
     async def get(self):
         if not self._wasInitialized:
-            self.subscription = self.subscriptionHandler.subscribe(self.subscription)
+            self.subscription = self.SubscriptionWriter.subscribe(self.subscription)
             self._wasInitialized = True
         if self.subscription is None:
             raise AttributeError(
                 "DelayedSubscription.subscription is None - this means that you did not pass a subscription object, and unsubscribed before one was created!"
             )
-        await self.subscription.get()
+        return await self.subscription.get()
 
 
 class RebatchSubscription:

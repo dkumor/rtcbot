@@ -5,10 +5,11 @@ import numpy as np
 
 import soundcard as sc
 
-from .subscriptions import BaseSubscriptionHandler
+
+from .base import BaseSubscriptionProducer
 
 
-class Microphone(BaseSubscriptionHandler):
+class Microphone(BaseSubscriptionProducer):
     """
     Reads microphone data, and writes audio output. This class allows you to
     output sound while reading it.

@@ -1,5 +1,5 @@
 from aiohttp import web
-from rtcbot import RTCConnection, CVCamera, Microphone
+from rtcbot import RTCConnection, CVCamera, Microphone, DelayedSubscription
 
 routes = web.RouteTableDef()
 import logging
@@ -18,8 +18,8 @@ async def setupRTC(request):
     clientOffer = await request.json()
     conn = RTCConnection()
 
-    conn.addAudio(mic)
-    conn.addVideo(cam)
+    conn.addAudio(DelayedSubscription(mic))
+    conn.addVideo(cam.subscribe())
 
     response = await conn.getLocalDescription(clientOffer)
     return web.json_response(response)

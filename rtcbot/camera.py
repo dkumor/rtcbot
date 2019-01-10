@@ -4,10 +4,11 @@ import logging
 import time
 import numpy as np
 
-from .subscriptions import BaseSubscriptionHandler, MostRecentSubscription
+from .base import BaseSubscriptionProducer
+from .subscriptions import MostRecentSubscription
 
 
-class CVCamera(BaseSubscriptionHandler):
+class CVCamera(BaseSubscriptionProducer):
     """
     Uses a camera supported by OpenCV. 
 
@@ -170,3 +171,12 @@ class PiCamera(CVCamera):
                     i = 0
                     t = time.time()
         self._log.debug("Closing camera capture")
+
+
+class CVDisplay:
+    """
+    Displays the frames in an openCV `imshow` window
+    """
+
+    def __init__(self, loop=None):
+        pass

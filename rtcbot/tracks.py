@@ -11,6 +11,12 @@ import asyncio
 
 import numpy as np
 from .subscriptions import RebatchSubscription
+from .base import BaseSubscriptionProducer
+
+
+class AudioReceiver(BaseSubscriptionProducer):
+    def __init__(self, stream, sampleRate=48000):
+        super().__init__(asyncio.Queue)
 
 
 class _VideoSender(VideoStreamTrack):
@@ -174,3 +180,8 @@ async def trackEater(track):
         except MediaStreamError:
             logging.exception("FUUCK MEEEEEEEEE\n\n\n")
         print("\n\nRECEIVED TRACK DATA:", data, data.time_base)
+
+
+class AudioSender:
+    def __init__(self):
+        pass
