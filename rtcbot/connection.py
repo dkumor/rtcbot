@@ -10,7 +10,7 @@ import fractions
 import time
 import asyncio
 
-from .tracks import _VideoSender, _AudioSender, trackEater
+from .tracks import VideoSender, AudioSender, trackEater
 
 
 class RTCConnection:
@@ -138,7 +138,7 @@ class RTCConnection:
             self._defaultChannel.close()
         await self._rtc.close()
 
-    def addVideo(self, frameSubscription):
+    def addVideo(self, frameSubscription=None, fps=None, canSkip=True):
         """
         Add video to the connection. This should be called before `getLocalDescription` is
         called, so that the video stream is set up correctly.
@@ -155,15 +155,23 @@ class RTCConnection:
         The `get()` function will only be called if the video stream is requested, so it is possible to only start
         video capture on first call of `get()`.
         """
-        self._rtc.addTrack(_VideoSender(frameSubscription))
+        s = VideoSender(fps=fps, canSkip=True)
+        if frameSubscription is not None:
+            s.putSubscription(frameSubscription)
+        self._rtc.addTrack(s.videoStreamTrack)
+        return s
 
-    def addAudio(self, audioSubscription, sampleRate=48000):
+    def addAudio(self, audioSubscription=None, sampleRate=48000, canSkip=True):
         """
         Add audio to the connection. Just like the video subscription, `await audioSubscription.get()` should
         give a numpy array of raw audio samples, with the given sample rate, and given format.
 
         """
-        self._rtc.addTrack(_AudioSender(audioSubscription, sampleRate=sampleRate))
+        s = AudioSender(sampleRate=sampleRate, canSkip=canSkip)
+        if audioSubscription is not None:
+            s.putSubscription(audioSubscription)
+        self._rtc.addTrack(s.audioStreamTrack)
+        return s
 
     # @property
     # def video(self):

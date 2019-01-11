@@ -1,6 +1,13 @@
 import asyncio
 import aiounittest
-from rtcbot.base import SubscriptionConsumer, SubscriptionProducer
+import threading
+import time
+from rtcbot.base import (
+    SubscriptionConsumer,
+    SubscriptionProducer,
+    ThreadedSubscriptionConsumer,
+    ThreadedSubscriptionProducer,
+)
 
 
 class TestBaseClasses(aiounittest.AsyncTestCase):
@@ -20,6 +27,9 @@ class TestBaseClasses(aiounittest.AsyncTestCase):
         # Now test cancellation - the current subscription is q.
         # we will switch to the default one
         getTask = asyncio.create_task(c.get())
+
+        # Give time for the task to start
+        await asyncio.sleep(0.01)
 
         c.put_nowait("Hi!")
 
@@ -82,5 +92,65 @@ class TestBaseClasses(aiounittest.AsyncTestCase):
 
         self.assertEqual(await q1.get(), 8)
 
+        p.unsubscribe()
+        p.unsubscribe()
+
         p.close()
+
+
+class TestThreadedClasses(aiounittest.AsyncTestCase):
+    async def test_ThreadedConsumer(self):
+        c = ThreadedSubscriptionConsumer()
+        c.put_nowait("test")
+
+        while not c.ready:
+            await asyncio.sleep(0.01)
+
+        # Have to sleep to give asyncio time to prepare the data
+        await asyncio.sleep(0.1)
+
+        self.assertEqual(c.testQueue.get(), "test")
+
+        # Now we test switching between subscriptions
+        q = asyncio.Queue()
+        q.put_nowait("heyy")
+
+        c.putSubscription(q)
+
+        await asyncio.sleep(0.01)
+        self.assertEqual(c.testQueue.get(), "heyy")
+
+        # Switch bask to the default
+        c.put_nowait("yeehaw")
+        await asyncio.sleep(0.01)
+        self.assertEqual(c.testQueue.get(), "yeehaw")
+
+        # wait 10 seconds to make sure the no incoming data line of code runs #codeCoverage
+        await asyncio.sleep(10)
+
+        c.close()
+        self.assertEqual(c.ready, False)
+        self.assertEqual(c.testQueue.get(), "<<END>>")
+
+    async def test_ThreadedProducer(self):
+        p = ThreadedSubscriptionProducer()
+
+        while not p.ready:
+            await asyncio.sleep(0.01)
+
+        p.testQueue.put("test1")
+        self.assertEqual(await p.get(), "test1")
+
+        def pushsleep():
+            # Work around the lask of a timeout in testing p
+            time.sleep(0.1)
+            p.testQueue.put("Ending")
+
+        threading.Thread(target=pushsleep).run()
+
+        p.close()
+
+        self.assertEqual(p.ready, False)
+
+        self.assertEqual(p.testResultQueue.get(), "<<END>>")
 

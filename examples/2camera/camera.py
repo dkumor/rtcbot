@@ -1,10 +1,15 @@
 from aiohttp import web
-from rtcbot import RTCConnection, CVCamera, Microphone, DelayedSubscription
+from rtcbot import getRTCBotJS, RTCConnection, CVCamera, Microphone, DelayedSubscription
 
 routes = web.RouteTableDef()
 import logging
 
 # logging.basicConfig(level=logging.DEBUG)
+
+
+@routes.get("/rtcbot.js")
+async def rtcbotJS(request):
+    return web.Response(content_type="text/javascript", text=getRTCBotJS())
 
 
 @routes.get("/")
@@ -27,7 +32,6 @@ async def setupRTC(request):
 
 cam = CVCamera()
 mic = Microphone()
-routes.static("/rtcbot/", path="./rtcbot")
 app = web.Application()
 app.add_routes(routes)
 web.run_app(app, port=8000)

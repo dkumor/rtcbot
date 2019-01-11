@@ -4,11 +4,11 @@ import logging
 import time
 import numpy as np
 
-from .base import BaseSubscriptionProducer
+from .base import ThreadedSubscriptionProducer, ThreadedSubscriptionConsumer
 from .subscriptions import MostRecentSubscription
 
 
-class CVCamera(BaseSubscriptionProducer):
+class CVCamera(ThreadedSubscriptionProducer):
     """
     Uses a camera supported by OpenCV. 
 
@@ -29,7 +29,7 @@ class CVCamera(BaseSubscriptionProducer):
         preprocessframe=lambda x: x,
         loop=None,
     ):
-        super().__init__(MostRecentSubscription, self._log)
+        super().__init__(MostRecentSubscription, self._log, loop=loop)
 
         self._width = width
         self._height = height
@@ -37,17 +37,7 @@ class CVCamera(BaseSubscriptionProducer):
         self._fps = fps
         self._processframe = preprocessframe
 
-        self._loop = loop
-        if self._loop is None:
-            self._loop = asyncio.get_event_loop()
-
-        # Start the camera stream in the background
-        self._workerThread = threading.Thread(target=self._captureWorker)
-        self._workerThread.daemon = True
-        self._workerThread.start()
-        self._shouldCloseWorkerThread = False
-
-    def _captureWorker(self):
+    def _producer(self):
         """
         Runs the actual frame capturing code.
         """
@@ -69,7 +59,8 @@ class CVCamera(BaseSubscriptionProducer):
 
         t = time.time()
         i = 0
-        while not self._shouldCloseWorkerThread:
+        self._ready = True
+        while not self._shouldClose:
             ret, frame = cap.read()
             if not ret:
                 self._log.error(f"CV read error {ret}")
@@ -78,7 +69,7 @@ class CVCamera(BaseSubscriptionProducer):
                 frame = self._processframe(frame)
 
                 # Send the frame to all subscribers
-                self._loop.call_soon_threadsafe(self._put_nowait, frame)
+                self._put_nowait(frame)
 
                 i += 1
                 if time.time() > t + 1:
@@ -86,6 +77,7 @@ class CVCamera(BaseSubscriptionProducer):
                     i = 0
                     t = time.time()
         cap.release()
+        self._ready = False
         self._log.debug("Closing camera capture")
 
     def subscribe(self, subscription=None):
@@ -116,13 +108,6 @@ class CVCamera(BaseSubscriptionProducer):
         # This function actually only exists for the docstring. It uses the superclass function.
         return super().subscribe(subscription)
 
-    def close(self):
-        """
-        Closes capture on the camera, and waits until the camera capture thread joins
-        """
-        self._shouldCloseWorkerThread = True
-        self._workerThread.join()
-
 
 class PiCamera(CVCamera):
     """
@@ -142,7 +127,7 @@ class PiCamera(CVCamera):
 
     _log = logging.getLogger("rtcbot.PiCamera")
 
-    def _captureWorker(self):
+    def _producer(self):
         import picamera
 
         with picamera.PiCamera() as cam:
@@ -150,10 +135,11 @@ class PiCamera(CVCamera):
             cam.framerate = self._fps
             time.sleep(2)  # Why is this needed?
             self._log.debug("PiCamera Ready")
+            self._ready = True
 
             t = time.time()
             i = 0
-            while not self._shouldCloseWorkerThread:
+            while not self._shouldClose:
                 # https://picamera.readthedocs.io/en/release-1.13/recipes2.html#capturing-to-an-opencv-object
                 frame = np.empty((self._width * self._height * 3,), dtype=np.uint8)
                 cam.capture(frame, "bgr", use_video_port=True)
@@ -170,13 +156,38 @@ class PiCamera(CVCamera):
                     log.debug(f" {i} fps")
                     i = 0
                     t = time.time()
+        self._ready = False
         self._log.debug("Closing camera capture")
 
 
-class CVDisplay:
+class CVDisplay(ThreadedSubscriptionConsumer):
     """
     Displays the frames in an openCV `imshow` window
     """
 
-    def __init__(self, loop=None):
-        pass
+    _log = logging.getLogger("rtcbot.CVDisplay")
+    __windowNameIterator = 1
+
+    def __init__(self, name=None, loop=None):
+        self._name = name
+        if self._name is None:
+            self._name = str(self.__windowNameIterator)
+            self.__windowNameIterator += 1
+        super().__init__(MostRecentSubscription, self._log, loop=loop)
+
+    def _consumer(self):
+        import cv2
+
+        self._ready = True
+        try:
+            while not self._shouldClose:
+                frame = self._get()
+                cv2.imshow(self._name, frame)
+                if cv2.waitKey(1) == 27:
+                    break  # esc to quit
+        except StopIteration:
+            pass
+        self._ready = False
+        self._log.debug("Closing frame")
+        cv2.destroyWindow(self._name)
+

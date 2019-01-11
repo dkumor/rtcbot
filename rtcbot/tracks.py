@@ -1,7 +1,12 @@
 
 from aiortc import VideoStreamTrack, AudioStreamTrack
 
-from aiortc.mediastreams import MediaStreamError, AUDIO_PTIME
+from aiortc.mediastreams import (
+    MediaStreamError,
+    AUDIO_PTIME,
+    VIDEO_CLOCK_RATE,
+    VIDEO_TIME_BASE,
+)
 from av import VideoFrame, AudioFrame
 
 import logging
@@ -10,73 +15,15 @@ import time
 import asyncio
 
 import numpy as np
-from .subscriptions import RebatchSubscription
-from .base import BaseSubscriptionProducer
+from .subscriptions import (
+    RebatchSubscription,
+    GetterSubscription,
+    MostRecentSubscription,
+)
+from .base import BaseSubscriptionProducer, BaseSubscriptionConsumer
 
 
-class AudioReceiver(BaseSubscriptionProducer):
-    def __init__(self, stream, sampleRate=48000):
-        super().__init__(asyncio.Queue)
-
-
-class _VideoSender(VideoStreamTrack):
-    # https://en.wikipedia.org/wiki/Presentation_timestamp
-    # It appears that 90k is a standard clock rate for video frames.
-    __VIDEO_CLOCKRATE = 90000
-    __VIDEO_TIME_BASE = fractions.Fraction(1, __VIDEO_CLOCKRATE)
-
-    def __init__(self, frameSubscription, fps=None, canSkip=True):
-        super().__init__()
-        self._log = logging.getLogger("VideoSender")
-        self._frameSubscription = frameSubscription
-
-        self._startTime = None
-        self._frameNumber = 0
-        self._fps = fps
-        self._canSkip = canSkip
-
-    async def recv(self):
-        img = await self._frameSubscription.get()
-        self._log.info("VIDEO")
-
-        if self._startTime is None:
-            self._startTime = time.time()
-
-        new_frame = VideoFrame.from_ndarray(img, format="bgr24")
-        new_frame.time_base = self.__VIDEO_TIME_BASE
-
-        # https://en.wikipedia.org/wiki/Presentation_timestamp
-        if self._fps is None:
-            # We assume that the frames arrive as fast as they are created.
-            new_frame.pts = int(
-                (time.time() - self._startTime) * self.__VIDEO_CLOCKRATE
-            )
-        else:
-            # We have a target frame rate. Here, we do something similar to the audioSubscription
-            self._frameNumber += 1
-
-            perfectFrameNumber = int((time.time() - self._startTime) * self._fps)
-
-            if self._canSkip:
-                if perfectFrameNumber - self._fps * 1 > self._frameNumber:
-                    self._log.warn(
-                        "Received video frame is over 1 second behind optimal timestamp! Skipping frame forward! Use canSkip=False to disable this correction"
-                    )
-                self._frameNumber = perfectFrameNumber
-
-            new_frame.pts = int(self._frameNumber * self.__VIDEO_CLOCKRATE / self._fps)
-
-            if perfectFrameNumber + self._fps * 2 < self._frameNumber:
-                # If the audio stream is over 2 seconds ahead, we wait 1 second before continuing
-                self._log.debug(
-                    "Stream is over 2 seconds ahead. Sleeping for 1 second."
-                )
-                await asyncio.sleep(1)
-
-        return new_frame
-
-
-class _AudioSender(AudioStreamTrack):
+class _audioSenderTrack(AudioStreamTrack):
     """
     The AudioSender is unfortunately fairly complex, due to the packetization requirements of the
     audio stream. The underlying issue is that we are taking a very generic stream of data, where
@@ -88,9 +35,12 @@ class _AudioSender(AudioStreamTrack):
 
     """
 
-    def __init__(self, audioSubscription, sampleRate=48000, canSkip=True):
+    _log = logging.getLogger("rtcbot.RTCConnection.AudioSender")
+
+    def __init__(
+        self, audioSubscription, sampleRate=48000, canSkip=True, startedCallback=None
+    ):
         super().__init__()
-        self._log = logging.getLogger("AudioSender")
         self._audioSubscription = RebatchSubscription(
             int(AUDIO_PTIME * sampleRate), axis=-1, subscription=audioSubscription
         )
@@ -98,16 +48,13 @@ class _AudioSender(AudioStreamTrack):
         self._startTime = None
         self._sampleNumber = 0
         self._canSkip = canSkip
-        self._sampleBuffer = None
-        self._sampleBufferSamples = 0
+        self._startedCallback = startedCallback
 
     async def recv(self):
-        self._log.info("IM AUDIOOOOOO")
+        if self._startTime is None and self._startedCallback is not None:
+            self._startedCallback()
 
-        try:
-            data = await self._audioSubscription.get()
-        except:
-            self._log.exception("Failed to get audio data")
+        data = await self._audioSubscription.get()
 
         # self._log.info("GOT AUDIO %d,%d", data.shape[0], data.shape[1])
 
@@ -151,7 +98,7 @@ class _AudioSender(AudioStreamTrack):
         perfectSampleNumber = (
             int((time.time() - self._startTime) * self._sampleRate) + data.shape[1]
         )
-        print(perfectSampleNumber - self._sampleNumber)
+        # print(perfectSampleNumber - self._sampleNumber)
         if self._canSkip:
 
             if perfectSampleNumber - self._sampleRate * 1 > self._sampleNumber:
@@ -167,9 +114,101 @@ class _AudioSender(AudioStreamTrack):
             self._log.debug("Stream is over 2 seconds ahead. Sleeping for 1 second.")
             await asyncio.sleep(1)
 
-        # self._log.info("RETURNING FRAMMEEE")
-        print("\n\nSENDING DATA", new_frame, new_frame.time_base)
+        # print("\n\nSENDING DATA", new_frame, new_frame.time_base)
         return new_frame
+
+
+class AudioSender(BaseSubscriptionConsumer):
+    _log = logging.getLogger("rtcbot.RTCConnection.AudioSender")
+
+    def __init__(self, sampleRate=48000, canSkip=True):
+        super().__init__(logger=self._log, ready=False)
+
+        def readySetter():
+            self._ready = True
+
+        # The RTCConnection will take this object, and aiortc
+        # will take it from here.
+        self.audioStreamTrack = _audioSenderTrack(
+            GetterSubscription(self._get),
+            sampleRate=sampleRate,
+            canSkip=canSkip,
+            startedCallback=readySetter,
+        )
+
+
+class _videoSenderTrack(VideoStreamTrack):
+
+    _log = logging.getLogger("rtcbot.RTCConnection.VideoSender")
+
+    def __init__(self, frameSubscription, fps=None, canSkip=True, startedCallback=None):
+        super().__init__()
+        self._frameSubscription = frameSubscription
+
+        self._startTime = None
+        self._frameNumber = 0
+        self._fps = fps
+        self._canSkip = canSkip
+        self._startedCallback = startedCallback
+
+    async def recv(self):
+        if self._startTime is None and self._startedCallback is not None:
+            self._startedCallback()
+
+        img = await self._frameSubscription.get()
+
+        if self._startTime is None:
+            self._startTime = time.time()
+
+        new_frame = VideoFrame.from_ndarray(img, format="bgr24")
+        new_frame.time_base = VIDEO_TIME_BASE
+
+        # https://en.wikipedia.org/wiki/Presentation_timestamp
+        if self._fps is None:
+            # We assume that the frames arrive as fast as they are created.
+            new_frame.pts = int((time.time() - self._startTime) * VIDEO_CLOCK_RATE)
+        else:
+            # We have a target frame rate. Here, we do something similar to the audioSubscription
+            self._frameNumber += 1
+
+            perfectFrameNumber = int((time.time() - self._startTime) * self._fps)
+
+            if self._canSkip:
+                if perfectFrameNumber - self._fps * 1 > self._frameNumber:
+                    self._log.warn(
+                        "Received video frame is over 1 second behind optimal timestamp! Skipping frame forward! Use canSkip=False to disable this correction"
+                    )
+                self._frameNumber = perfectFrameNumber
+
+            new_frame.pts = int(self._frameNumber * VIDEO_CLOCK_RATE / self._fps)
+
+            if perfectFrameNumber + self._fps * 2 < self._frameNumber:
+                # If the audio stream is over 2 seconds ahead, we wait 1 second before continuing
+                self._log.debug(
+                    "Stream is over 2 seconds ahead. Sleeping for 1 second."
+                )
+                await asyncio.sleep(1)
+
+        return new_frame
+
+
+class VideoSender(BaseSubscriptionConsumer):
+    _log = logging.getLogger("rtcbot.RTCConnection.VideoSender")
+
+    def __init__(self, fps=None, canSkip=True):
+        super().__init__(MostRecentSubscription, logger=self._log, ready=False)
+
+        def readySetter():
+            self._ready = True
+
+        # The RTCConnection will take this object, and aiortc
+        # will take it from here.
+        self.videoStreamTrack = _videoSenderTrack(
+            GetterSubscription(self._get),
+            fps=fps,
+            canSkip=canSkip,
+            startedCallback=readySetter,
+        )
 
 
 async def trackEater(track):
@@ -182,6 +221,6 @@ async def trackEater(track):
         print("\n\nRECEIVED TRACK DATA:", data, data.time_base)
 
 
-class AudioSender:
-    def __init__(self):
-        pass
+class AudioReceiver(BaseSubscriptionProducer):
+    def __init__(self, stream, sampleRate=48000):
+        super().__init__(asyncio.Queue)

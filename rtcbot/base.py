@@ -6,7 +6,11 @@ import time
 
 class BaseSubscriptionProducer:
     def __init__(
-        self, defaultSubscriptionClass, defaultAutosubscribe=False, logger=None
+        self,
+        defaultSubscriptionClass=asyncio.Queue,
+        defaultAutosubscribe=False,
+        logger=None,
+        ready=True,
     ):
         self.__subscriptions = set()
         self.__defaultSubscriptionClass = defaultSubscriptionClass
@@ -20,6 +24,9 @@ class BaseSubscriptionProducer:
             )
         else:
             self.__splog = logger.getChild("SubscriptionProducer")
+
+        # Once all init is finished, need to set self._ready to True if we don't set it by default
+        self._ready = ready
 
         if defaultAutosubscribe:
             self.__defaultSubscribe()
@@ -107,6 +114,11 @@ class BaseSubscriptionProducer:
     def close(self):
         self._shouldClose = True
         self.unsubscribeAll()
+        self._ready = False
+
+    @property
+    def ready(self):
+        return self._ready  # No need to lock, as this thread only reads a binary T/F
 
 
 class BaseSubscriptionConsumer:
@@ -117,15 +129,13 @@ class BaseSubscriptionConsumer:
     all the other annoying stuff.
     """
 
-    def __init__(self, directPutSubscriptionType, logger=None, loop=None):
-
-        self._loop = loop
-        if self._loop is None:
-            self._loop = asyncio.get_event_loop()
+    def __init__(
+        self, directPutSubscriptionType=asyncio.Queue, logger=None, ready=True
+    ):
 
         self.__directPutSubscriptionType = directPutSubscriptionType
-        self._directPutSubscription = directPutSubscriptionType()
-        self._subscription = self._directPutSubscription
+        self.__directPutSubscription = directPutSubscriptionType()
+        self._subscription = self.__directPutSubscription
         self._shouldClose = False
 
         # The task used for getting data in _get. This allows us to cancel the task, and switch out subscriptions
@@ -138,6 +148,9 @@ class BaseSubscriptionConsumer:
             )
         else:
             self.__sclog = logger.getChild("SubscriptionConsumer")
+
+        # Once all init is finished, need to set self._ready to True
+        self._ready = ready
 
     async def _get(self):
         """
@@ -162,11 +175,14 @@ class BaseSubscriptionConsumer:
         """
         Direct API for sending data to the reader, without needing to pass a subscription.
         """
-        if self._subscription != self._directPutSubscription:
+        if self._subscription != self.__directPutSubscription:
             # If the subscription is not the default, stop, which will create a new default,
             # to which we can add our data
             self.stop()
-        self._directPutSubscription.put_nowait(data)
+        self.__sclog.debug(
+            "put data with subscription %s", self.__directPutSubscription
+        )
+        self.__directPutSubscription.put_nowait(data)
 
     def putSubscription(self, subscription):
         """
@@ -190,58 +206,94 @@ class BaseSubscriptionConsumer:
         Stops reading the current subscription. Forgets any subscription,
         and waits for new data, which is passed through `put_nowait` or `readSubscription`
         """
-        self._directPutSubscription = self.__directPutSubscriptionType()
-        self.putSubscription(self._directPutSubscription)  # read the empty subscription
+        self.__directPutSubscription = self.__directPutSubscriptionType()
+        self.putSubscription(
+            self.__directPutSubscription
+        )  # read the empty subscription
 
     def close(self):
         """
         Close the consumer - 
         """
+
+        self._ready = False
         self._shouldClose = True
         if self._getTask is not None and not self._getTask.done():
             self._getTask.cancel()
 
+    @property
+    def ready(self):
+        return self._ready  # No need to lock, as this thread only reads a binary T/F
+
 
 class ThreadedSubscriptionProducer(BaseSubscriptionProducer):
-    def __init__(self, defaultSubscriptionType, logger=None, loop=None):
-        super().__init__(defaultSubscriptionType, logger)
+    def __init__(self, defaultSubscriptionType=asyncio.Queue, logger=None, loop=None):
+        super().__init__(defaultSubscriptionType, logger=logger, ready=False)
 
         self._loop = loop
         if self._loop is None:
             self._loop = asyncio.get_event_loop()
 
-        self._workerThread = threading.Thread(target=self._producer)
-        self._workerThread.daemon = True
-        self._workerThread.start()
+        self._producerThread = threading.Thread(target=self._producer)
+        self._producerThread.daemon = True
+        self._producerThread.start()
 
     def _put_nowait(self, data):
         """
         To be called by the producer thread to insert data.
+
         """
+        # raises a StopIteration if the producer was closed, and the thread should exit
+        # if self._shouldClose:
+        #    raise StopIteration("ThreadedSubscriptionProducer has been closed")
+        # EDIT: no it doesn't because that is just too annoying
         self._loop.call_soon_threadsafe(super()._put_nowait, data)
 
     def _producer(self):
         """
         This is the function run in another thread. You override the function with your own logic.
+
+        The base implementation is used for testing
         """
-        while not self._shouldClose:
-            time.sleep(1)
-            self._put_nowait(0)
+        import queue
+
+        self.testQueue = queue.Queue()
+        self.testResultQueue = queue.Queue()
+
+        # We are ready!
+        self._ready = True
+        try:
+            while True:
+                # In real code, there should be a timeout in get to make sure _shouldClose is not True
+                self._put_nowait(self.testQueue.get())
+        except StopIteration:
+            self.testResultQueue.put("<<END>>")
 
     def close(self):
         super().close()
-        self._workerThread.join()
+        self._producerThread.join()
 
 
 class ThreadedSubscriptionConsumer(BaseSubscriptionConsumer):
-    def __init__(self, directPutSubscriptionType, logger=None, loop=None):
-        super().__init__(directPutSubscriptionType, logger=logger, loop=loop)
+    def __init__(self, directPutSubscriptionType=asyncio.Queue, logger=None, loop=None):
+        super().__init__(directPutSubscriptionType, logger=logger, ready=False)
+
+        self._loop = loop
+        if self._loop is None:
+            self._loop = asyncio.get_event_loop()
+
+        if logger is None:
+            self.__sclog = logging.getLogger(self.__class__.__name__).getChild(
+                "ThreadedSubscriptionConsumer"
+            )
+        else:
+            self.__sclog = logger.getChild("ThreadedSubscriptionConsumer")
 
         self._taskLock = threading.Lock()
 
-        self._workerThread = threading.Thread(target=self._consumer)
-        self._workerThread.daemon = True
-        self._workerThread.start()
+        self._consumerThread = threading.Thread(target=self._consumer)
+        self._consumerThread.daemon = True
+        self._consumerThread.start()
 
     def _get(self):
         """
@@ -254,10 +306,16 @@ class ThreadedSubscriptionConsumer(BaseSubscriptionConsumer):
                     self._subscription.get(), self._loop
                 )
             try:
-                return self._getTask.result()
+                return self._getTask.result(10)
             except asyncio.CancelledError:
-                # Subscription cancelled!
-                pass
+                self.__sclog.debug(
+                    "Subscription cancelled - waiting for new subscription's data"
+                )
+            except asyncio.TimeoutError:
+                self.__sclog.debug("No incoming data for 10 seconds...")
+        self.__sclog.debug(
+            "close() was called on the aio thread. raising StopIteration."
+        )
         raise StopIteration("ThreadedSubscriptionConsumer has been closed")
 
     def _consumer(self):
@@ -265,26 +323,31 @@ class ThreadedSubscriptionConsumer(BaseSubscriptionConsumer):
         This is the function that is to be overloaded by the superclass to read data.
         It is run in a separate thread. It should call self._get() to get the next datapoint coming
         from a subscription.
+
+        The default implementation is used for testing
         """
+
+        import queue
+
+        self.testQueue = queue.Queue()
+
+        # We are ready!
+        self._ready = True
         try:
             while True:
                 data = self._get()
-                print("GOT DATA", data)
+                self.testQueue.put(data)
         except StopIteration:
-            pass
+            self.testQueue.put("<<END>>")
 
     def putSubscription(self, subscription):
         with self._taskLock:
             super().putSubscription(subscription)
 
-    def stop(self):
-        with self._taskLock:
-            super().stop()
-
     def close(self):
         with self._taskLock:
             super().close()
-        self._workerThread.join()
+        self._consumerThread.join()
 
 
 class SubscriptionProducer(BaseSubscriptionProducer):
@@ -303,7 +366,30 @@ class BaseSubscriptionProducerConsumer(
     """
     This base class represents an object which is both a producer and consumer. This is common
     with two-way connections.
+
+    Here, you call _get() to consume the incoming data, and _put_nowait() to produce outgoing data.
     """
 
-    def __init__(self):
-        pass
+    def __init__(
+        self,
+        directPutSubscriptionType=asyncio.Queue,
+        defaultSubscriptionType=asyncio.Queue,
+        logger=None,
+        ready=False,
+        defaultAutosubscribe=False,
+    ):
+        BaseSubscriptionConsumer.__init__(
+            self, directPutSubscriptionType, logger=logger, ready=ready
+        )
+        BaseSubscriptionProducer.__init__(
+            self,
+            defaultSubscriptionType,
+            logger=logger,
+            ready=ready,
+            defaultAutosubscribe=defaultAutosubscribe,
+        )
+
+    def close(self):
+        BaseSubscriptionConsumer.close(self)
+        BaseSubscriptionProducer.close(self)
+

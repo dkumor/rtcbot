@@ -54,15 +54,40 @@ class CallbackSubscription:
 
     """
 
-    def __init__(self, callback, loop=None):
+    def __init__(self, callback, loop=None, runDirect=False):
         self._callback = callback
         self._loop = loop
+        self._runDirect = runDirect
         if self._loop is None:
             self._loop = asyncio.get_event_loop()
 
     def put_nowait(self, element):
         # We don't want to stall the event loop at this moment - we call it soon enough.
-        self._loop.call_soon(partial(self._callback, element))
+        if self._runDirect:
+            self._callback(element)
+        else:
+            self._loop.call_soon(partial(self._callback, element))
+
+
+class GetterSubscription:
+    """
+    You might have a function which behaves like a get(), but it is just a function.
+    The GetterSubscription is a wrapper that calls your function on get()::
+
+        @GetterSubscription
+        async def myfunction():
+            asyncio.sleep(1)
+            return "hello!"
+
+        await myfunction.get()
+        # returns "hello!"
+    """
+
+    def __init__(self, callback):
+        self._callback = callback
+
+    async def get(self):
+        return await self._callback()
 
 
 class DelayedSubscription:
@@ -193,4 +218,3 @@ class RebatchSubscription:
                 self._partialBatch = None
 
         return self._sampleQueue.popleft()
-
