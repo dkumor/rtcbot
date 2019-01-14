@@ -10,7 +10,7 @@ import fractions
 import time
 import asyncio
 
-from .tracks import VideoSender, AudioSender, trackEater
+from .tracks import VideoSender, AudioSender, AudioReceiver, VideoReceiver
 
 
 class RTCConnection:
@@ -24,6 +24,8 @@ class RTCConnection:
         self._dataChannels = {}
         self._videoSubscription = None
         self._audioSubscription = None
+        self._videoReceiver = None
+        self._audioReceiver = None
 
         if onMessage:
             self._msgcallback = onMessage
@@ -110,10 +112,18 @@ class RTCConnection:
         self._log.debug("RTC Connection State %s", self._rtc.iceConnectionState)
 
     def _onTrack(self, track):
-        self._log.debug("Got track!")
+        self._log.debug("Received %s track from connection", track.kind)
+        if track.kind == "audio":
+            self._audioReceiver = AudioReceiver(track)
+            if self._audioSubscription is not None:
+                self._audioSubscription(self._audioReceiver)
+        elif track.kind == "video":
+            self._videoReceiver = VideoReceiver(track)
+            if self._videoSubscription is not None:
+                self._videoSubscription(self._videoReceiver)
 
-        # if track.kind == "audio":
-        asyncio.ensure_future(trackEater(track))
+        else:
+            self._log.error("Received unknown track type: %s", track.kind)
 
     def _onMessage(self, channel, message):
         self._log.debug("Received message: (%s) %s", channel.label, message)
@@ -172,6 +182,12 @@ class RTCConnection:
             s.putSubscription(audioSubscription)
         self._rtc.addTrack(s.audioStreamTrack)
         return s
+
+    def onAudio(self, callback):
+        self._audioSubscription = callback
+
+    def onVideo(self, callback):
+        self._videoSubscription = callback
 
     # @property
     # def video(self):

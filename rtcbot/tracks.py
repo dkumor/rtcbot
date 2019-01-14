@@ -8,6 +8,7 @@ from aiortc.mediastreams import (
     VIDEO_TIME_BASE,
 )
 from av import VideoFrame, AudioFrame
+import cv2
 
 import logging
 import fractions
@@ -211,16 +212,75 @@ class VideoSender(BaseSubscriptionConsumer):
         )
 
 
-async def trackEater(track):
-    print("got track, and started looop!!", track.kind)
-    while True:
-        try:
-            data = await track.recv()
-        except MediaStreamError:
-            logging.exception("FUUCK MEEEEEEEEE\n\n\n")
-        print("\n\nRECEIVED TRACK DATA:", data, data.time_base)
-
-
 class AudioReceiver(BaseSubscriptionProducer):
-    def __init__(self, stream, sampleRate=48000):
-        super().__init__(asyncio.Queue)
+    _log = logging.getLogger("rtcbot.RTCConnection.AudioReceiver")
+
+    def __init__(self, track):
+        super().__init__(asyncio.Queue, logger=self._log)
+        self._track = track
+        print("\n\nTRACK\n\n", self._track)
+        self._sampleRate = None
+
+        asyncio.ensure_future(self._trackReceiver())
+
+    async def _trackReceiver(self):
+        audioFrame = await self._track.recv()
+
+        self._sampleRate = audioFrame.sample_rate
+
+        # Once we receive the first audio frame, we are ready
+        self._ready = True
+        while not self._shouldClose:
+            # Decode the frame
+
+            data = audioFrame.to_ndarray()
+
+            # Now we reshape to get samples per channel, since to_ndarray returns one big array,
+            # transpose to get channels*samples, and divide by 32768 to convert to float
+            # TODO: Make sure that the format is s16!
+            if data.dtype != np.int16:
+                self._log
+            data = (
+                np.transpose(np.reshape(data, (audioFrame.samples, -1))).astype(
+                    np.float
+                )
+                / 32768
+            )
+            self._put_nowait(data)
+
+            # Get the next frame
+            try:
+                audioFrame = await self._track.recv()
+            except MediaStreamError:
+                logging.exception("Error in the audio stream")
+                return
+        self._ready = False
+
+
+class VideoReceiver(BaseSubscriptionProducer):
+    _log = logging.getLogger("rtcbot.RTCConnection.VideoReceiver")
+
+    def __init__(self, track):
+        super().__init__(MostRecentSubscription, logger=self._log)
+        self._track = track
+
+        asyncio.ensure_future(self._trackReceiver())
+
+    async def _trackReceiver(self):
+        videoFrame = await self._track.recv()
+
+        # Once we receive the first frame, we are ready
+        self._ready = True
+        while not self._shouldClose:
+
+            # Decode the frame
+            data = videoFrame.to_rgb().to_ndarray()
+            data = cv2.cvtColor(data, cv2.COLOR_RGB2BGR)
+            print("\n\n", videoFrame, data.shape)
+            self._put_nowait(data)
+
+            # Get the next frame
+            try:
+                videoFrame = await self._track.recv()
+            except MediaStreamError:
+                logging.exception("Error in the video stream")

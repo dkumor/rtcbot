@@ -91,6 +91,7 @@ class Speaker(ThreadedSubscriptionConsumer):
             while not self._shouldClose:
                 try:
                     data = self._get()
+                    self._log.debug("Received sample shape %s", data.shape)
                     if data.ndim > 1:
                         # we have channelxsamples but want samplesxchannels
                         data = np.transpose(data)
