@@ -29,7 +29,9 @@ class DataChannel(SubscriptionProducerConsumer):
     async def _messageSender(self):
         while not self._shouldClose:
             try:
-                self._rtcDataChannel.send(await self._get())
+                msg = await self._get()
+                self._log.debug("Sending message %s", msg)
+                self._rtcDataChannel.send(msg)
             except SubscriptionClosed:
                 pass
                 # The while loop should exit here
@@ -281,7 +283,6 @@ class RTCConnection(SubscriptionProducerConsumer):
         self._rtc.on("track", self._onTrack)
 
         self._hasRemoteDescription = False
-        self._defaultChannel = None
         self._defaultChannelOrdered = defaultChannelOrdered
 
         self._videoHandler = ConnectionVideoHandler(self._rtc)
@@ -312,9 +313,14 @@ class RTCConnection(SubscriptionProducerConsumer):
 
         # Before starting init, we create a default data channel for the connection
         self._log.debug("Setting up default data channel")
-        self._defaultChannel = self._rtc.createDataChannel(
-            "default", ordered=self._defaultChannelOrdered
+        channel = DataChannel(
+            self._rtc.createDataChannel("default", ordered=self._defaultChannelOrdered)
         )
+        # Subscribe the default channel directly to our own inputs and outputs.
+        # We have it listen to our own self._get, and write to our self._put_nowait
+        channel.putSubscription(GetterSubscription(self._get))
+        channel.subscribe(self._put_nowait)
+        self._dataChannels[channel.name] = channel
 
         self._log.debug("Creating new connection offer")
         offer = await self._rtc.createOffer()
@@ -356,6 +362,37 @@ class RTCConnection(SubscriptionProducerConsumer):
         elif track.kind == "video":
             self._videoHandler._onTrack(track)
 
+    def onDataChannel(self, callback=None):
+        """
+        Acts as a subscriber...
+        """
+        return self._dataChannelSubscriber.subscribe(callback)
+
+    def addDataChannel(self, name, ordered=True):
+        """
+        Adds a data channel to the connection. Note that the RTCConnection adds a "default" channel
+        automatically, which you can subscribe to directly.
+        """
+        self._log.debug("Adding data channel to connection")
+
+        if name in self._dataChannels or name == "default":
+            raise KeyError("Data channel %s already exists", name)
+
+        dc = DataChannel(self._rtc.createDataChannel(name, ordered=ordered))
+        self._dataChannels[name] = dc
+        return dc
+
+    def getDataChannel(self, name):
+        """
+        Returns the data channel with the given name. Please note that the "default" channel is considered special,
+        and is not returned.
+        """
+        if name == "default":
+            raise KeyError(
+                "Default channel not available for 'get'. Use the RTCConnection's subscribe and put_nowait methods for access to it."
+            )
+        return self._dataChannels[name]
+
     @property
     def video(self):
         """
@@ -391,4 +428,11 @@ class RTCConnection(SubscriptionProducerConsumer):
         else:
             self._loop.run_until_complete(self._rtc.close())
         return None
+
+    def send(self, msg):
+        """
+        Send is an alias for put_nowait - makes it easier for people new to rtcbot to understand
+        what is going on
+        """
+        self.put_nowait(msg)
 

@@ -16,20 +16,18 @@ class TestRTCConnection(aiounittest.AsyncTestCase):
         c1 = RTCConnection()
         c2 = RTCConnection()
 
-        q1 = asyncio.Queue()
-        q2 = asyncio.Queue()
-        c1.onMessage(lambda c, m: q1.put_nowait(m))
-        c2.onMessage(lambda c, m: q2.put_nowait(m))
+        q1 = c1.subscribe()
+        q2 = c2.subscribe()
 
         offer = await c1.getLocalDescription()
         response = await c2.getLocalDescription(offer)
         await c1.setRemoteDescription(response)
 
-        c1.send(testmsg1)
-        c2.send(testmsg2)
+        c1.put_nowait(testmsg1)
+        c2.put_nowait(testmsg2)
 
-        c1.send("OMG")
-        c2.send("OMG2")
+        c1.send("OMG")  # Just to check
+        c2.put_nowait("OMG2")
 
         msg1 = await asyncio.wait_for(q1.get(), 5)
         msg2 = await asyncio.wait_for(q2.get(), 5)
@@ -46,3 +44,11 @@ class TestRTCConnection(aiounittest.AsyncTestCase):
         await c1.close()
         await c2.close()
 
+    async def test_multipleDataChannels(self):
+        c1 = RTCConnection()
+        c2 = RTCConnection()
+
+        dcs1 = c1.onDataChannel()
+        dcs2 = c2.onDataChannel()
+
+        # CONTINUE...
