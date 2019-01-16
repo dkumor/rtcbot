@@ -4,8 +4,13 @@ import logging
 import time
 import numpy as np
 
-from .base import ThreadedSubscriptionProducer, ThreadedSubscriptionConsumer
+from .base import (
+    ThreadedSubscriptionProducer,
+    ThreadedSubscriptionConsumer,
+    SubscriptionClosed,
+)
 from .subscriptions import MostRecentSubscription
+import cv2
 
 
 class CVCamera(ThreadedSubscriptionProducer):
@@ -41,9 +46,7 @@ class CVCamera(ThreadedSubscriptionProducer):
         """
         Runs the actual frame capturing code.
         """
-        import cv2
-
-        self._log.debug("Started camera thread")
+        self._log.info("Started camera thread")
         cap = cv2.VideoCapture(self._cameranumber)
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._width)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._height)
@@ -78,7 +81,7 @@ class CVCamera(ThreadedSubscriptionProducer):
                     t = time.time()
         cap.release()
         self._ready = False
-        self._log.debug("Closing camera capture")
+        self._log.info("Ended camera capture")
 
     def subscribe(self, subscription=None):
         """
@@ -157,7 +160,7 @@ class PiCamera(CVCamera):
                     i = 0
                     t = time.time()
         self._ready = False
-        self._log.debug("Closing camera capture")
+        self._log.info("Closed camera capture")
 
 
 class CVDisplay(ThreadedSubscriptionConsumer):
@@ -176,8 +179,6 @@ class CVDisplay(ThreadedSubscriptionConsumer):
         super().__init__(MostRecentSubscription, self._log, loop=loop)
 
     def _consumer(self):
-        import cv2
-
         self._ready = True
         try:
             while not self._shouldClose:
@@ -185,9 +186,9 @@ class CVDisplay(ThreadedSubscriptionConsumer):
                 cv2.imshow(self._name, frame)
                 if cv2.waitKey(1) == 27:
                     break  # esc to quit
-        except StopIteration:
+        except SubscriptionClosed:
             pass
         self._ready = False
-        self._log.debug("Closing frame")
         cv2.destroyWindow(self._name)
+        self._log.debug("Ended video display")
 

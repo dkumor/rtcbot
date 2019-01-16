@@ -21,7 +21,7 @@ from .subscriptions import (
     GetterSubscription,
     MostRecentSubscription,
 )
-from .base import BaseSubscriptionProducer, BaseSubscriptionConsumer
+from .base import BaseSubscriptionProducer, BaseSubscriptionConsumer, SubscriptionClosed
 
 
 class _audioSenderTrack(AudioStreamTrack):
@@ -54,8 +54,20 @@ class _audioSenderTrack(AudioStreamTrack):
     async def recv(self):
         if self._startTime is None and self._startedCallback is not None:
             self._startedCallback()
+        try:
+            data = await self._audioSubscription.get()
+        except SubscriptionClosed:
+            self._log.debug(
+                "Audio track finished. raising MediaStreamError to shut down connection"
+            )
+            self.stop()
+            raise MediaStreamError
+        except:
+            self._log.exception("Got unknown error. Crashing video stream")
+            self.stop()
+            raise MediaStreamError
 
-        data = await self._audioSubscription.get()
+        # self._log.exception("FAIL")
 
         # self._log.info("GOT AUDIO %d,%d", data.shape[0], data.shape[1])
 
@@ -116,6 +128,7 @@ class _audioSenderTrack(AudioStreamTrack):
             await asyncio.sleep(1)
 
         # print("\n\nSENDING DATA", new_frame, new_frame.time_base)
+        self._log.debug("Writing frame %s", new_frame)
         return new_frame
 
 
@@ -137,6 +150,10 @@ class AudioSender(BaseSubscriptionConsumer):
             startedCallback=readySetter,
         )
 
+    def close(self):
+        # self.audioStreamTrack.stop()
+        super().close()
+
 
 class _videoSenderTrack(VideoStreamTrack):
 
@@ -156,7 +173,18 @@ class _videoSenderTrack(VideoStreamTrack):
         if self._startTime is None and self._startedCallback is not None:
             self._startedCallback()
 
-        img = await self._frameSubscription.get()
+        try:
+            img = await self._frameSubscription.get()
+        except SubscriptionClosed:
+            self._log.debug(
+                "Video track finished. raising MediaStreamError to shut down connection"
+            )
+            self.stop()
+            raise MediaStreamError
+        except:
+            self._log.exception("Got unknown error. Crashing video stream")
+            self.stop()
+            raise MediaStreamError
 
         if self._startTime is None:
             self._startTime = time.time()
@@ -189,7 +217,7 @@ class _videoSenderTrack(VideoStreamTrack):
                     "Stream is over 2 seconds ahead. Sleeping for 1 second."
                 )
                 await asyncio.sleep(1)
-
+        self._log.debug("Writing frame %s", new_frame)
         return new_frame
 
 
@@ -211,6 +239,10 @@ class VideoSender(BaseSubscriptionConsumer):
             startedCallback=readySetter,
         )
 
+    def close(self):
+        # self.videoStreamTrack.stop()
+        super().close()
+
 
 class AudioReceiver(BaseSubscriptionProducer):
     _log = logging.getLogger("rtcbot.RTCConnection.AudioReceiver")
@@ -218,13 +250,18 @@ class AudioReceiver(BaseSubscriptionProducer):
     def __init__(self, track):
         super().__init__(asyncio.Queue, logger=self._log)
         self._track = track
-        print("\n\nTRACK\n\n", self._track)
         self._sampleRate = None
 
         asyncio.ensure_future(self._trackReceiver())
 
     async def _trackReceiver(self):
-        audioFrame = await self._track.recv()
+        try:
+            audioFrame = await self._track.recv()
+        except MediaStreamError:
+            logging.exception("Error in the audio stream")
+            self._track.stop()
+            self.close()
+            return
 
         self._sampleRate = audioFrame.sample_rate
 
@@ -237,24 +274,27 @@ class AudioReceiver(BaseSubscriptionProducer):
 
             # Now we reshape to get samples per channel, since to_ndarray returns one big array,
             # transpose to get channels*samples, and divide by 32768 to convert to float
-            # TODO: Make sure that the format is s16!
             if data.dtype != np.int16:
-                self._log
-            data = (
-                np.transpose(np.reshape(data, (audioFrame.samples, -1))).astype(
-                    np.float
+                self._log.error(
+                    "Incoming audio frame's data type unsupported: %s", audioFrame
                 )
-                / 32768
-            )
-            self._put_nowait(data)
+            else:
+                data = (
+                    np.transpose(np.reshape(data, (audioFrame.samples, -1))).astype(
+                        np.float
+                    )
+                    / 32768
+                )
+                self._put_nowait(data)
 
             # Get the next frame
             try:
                 audioFrame = await self._track.recv()
             except MediaStreamError:
-                logging.exception("Error in the audio stream")
-                return
-        self._ready = False
+                self._log.debug("Audio stream finished")
+                self.close()
+        self._log.info("Ending audio receiving")
+        self._track.stop()
 
 
 class VideoReceiver(BaseSubscriptionProducer):
@@ -267,7 +307,13 @@ class VideoReceiver(BaseSubscriptionProducer):
         asyncio.ensure_future(self._trackReceiver())
 
     async def _trackReceiver(self):
-        videoFrame = await self._track.recv()
+        try:
+            videoFrame = await self._track.recv()
+        except MediaStreamError:
+            logging.exception("Error in the video stream")
+            self._track.stop()
+            self.close()
+            return
 
         # Once we receive the first frame, we are ready
         self._ready = True
@@ -276,11 +322,14 @@ class VideoReceiver(BaseSubscriptionProducer):
             # Decode the frame
             data = videoFrame.to_rgb().to_ndarray()
             data = cv2.cvtColor(data, cv2.COLOR_RGB2BGR)
-            print("\n\n", videoFrame, data.shape)
+            self._log.debug("Received %s frame", data.shape)
             self._put_nowait(data)
 
             # Get the next frame
             try:
                 videoFrame = await self._track.recv()
             except MediaStreamError:
-                logging.exception("Error in the video stream")
+                self._log.debug("Video stream finished")
+                self.close()
+        self._log.info("Ending video receiving")
+        self._track.stop()

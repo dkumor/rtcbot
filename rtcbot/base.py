@@ -2,6 +2,11 @@ import asyncio
 import threading
 import logging
 import time
+import inspect
+
+
+class SubscriptionClosed(Exception):
+    pass
 
 
 class BaseSubscriptionProducer:
@@ -13,6 +18,8 @@ class BaseSubscriptionProducer:
         ready=True,
     ):
         self.__subscriptions = set()
+        self.__callbacks = set()
+        self.__cocallbacks = set()
         self.__defaultSubscriptionClass = defaultSubscriptionClass
         self.__defaultSubscription = None
 
@@ -38,14 +45,27 @@ class BaseSubscriptionProducer:
         """
         if subscription is None:
             subscription = self.__defaultSubscriptionClass()
-        self.__splog.debug("Added subscription %s", subscription)
-        self.__subscriptions.add(subscription)
+        if callable(getattr(subscription, "put_nowait", None)):
+            self.__splog.debug("Added subscription %s", subscription)
+            self.__subscriptions.add(subscription)
+        elif inspect.iscoroutinefunction(subscription):
+            self.__splog.debug("Added async callback %s", subscription)
+            self.__cocallbacks.add(subscription)
+        else:
+            self.__splog.debug("Added callback %s", subscription)
+            self.__callbacks.add(subscription)
         return subscription
 
     def _put_nowait(self, element):
         for s in self.__subscriptions:
             self.__splog.debug("put data into %s", s)
             s.put_nowait(element)
+        for c in self.__callbacks:
+            self.__splog.debug("calling %s", c)
+            c(element)
+        for c in self.__cocallbacks:
+            self.__splog.debug("setting up future for %s", c)
+            asyncio.ensure_future(c(element))
 
     def unsubscribe(self, subscription=None):
         """
@@ -68,14 +88,23 @@ class BaseSubscriptionProducer:
                     "Unsubscribe called, but no default subscription is active. Doing nothing."
                 )
         else:
-            self.__splog.debug("Removing subscription %s", subscription)
-            self.__subscriptions.remove(subscription)
+            if callable(getattr(subscription, "put_nowait", None)):
+                self.__splog.debug("Removing subscription %s", subscription)
+                self.__subscriptions.remove(subscription)
+            elif inspect.iscoroutinefunction(subscription):
+                self.__splog.debug("Removing async callback %s", subscription)
+                self.__cocallbacks.remove(subscription)
+            else:
+                self.__splog.debug("Removing callback %s", subscription)
+                self.__callbacks.remove(subscription)
 
     def unsubscribeAll(self):
         """
         Removes all currently active subscriptions, including the default one if it was intialized.
         """
         self.__subscriptions = set()
+        self.__callbacks = set()
+        self.__cocallbacks = set()
         self.__defaultSubscription = None
 
     def __defaultSubscribe(self):
@@ -112,6 +141,7 @@ class BaseSubscriptionProducer:
         return await self.__defaultSubscription.get()
 
     def close(self):
+        self.__splog.debug("Closing")
         self._shouldClose = True
         self.unsubscribeAll()
         self._ready = False
@@ -157,19 +187,26 @@ class BaseSubscriptionConsumer:
         This function is to be called by the backend of the StreamReader to get new data instead of 
         calling get() on the subscription itself.
         """
-        while True:
+        while not self._shouldClose:
             self._getTask = asyncio.create_task(self._subscription.get())
 
             try:
+                self.__sclog.debug("Waiting for new data...")
                 await self._getTask
+                return self._getTask.result()
             except asyncio.CancelledError:
                 # If the coroutine was cancelled, it means that self._subscription was replaced,
                 # so we just loop back to await the new one
+                self.__sclog.debug("Subscription cancelled  - checking for new tasks")
+            except SubscriptionClosed:
                 self.__sclog.debug(
-                    "Subscription cancelled - waiting for new subscription's data"
+                    "Incoming subscription closed - checking for new subscription"
                 )
-            else:
-                return self._getTask.result()
+            except:
+                self.__sclog.exception("Got unrecognized error from task. ignoring:")
+
+        self.__sclog.debug("close() was called. raising SubscriptionClosed.")
+        raise SubscriptionClosed("SubscriptionConsumer has been closed")
 
     def put_nowait(self, data):
         """
@@ -193,6 +230,8 @@ class BaseSubscriptionConsumer:
             while True:
                 sr.put_nowait(await subscription.get())
         """
+        if subscription == self._subscription:
+            return
         self.__sclog.debug(
             "Changing subscription from %s to %s", self._subscription, subscription
         )
@@ -215,11 +254,21 @@ class BaseSubscriptionConsumer:
         """
         Close the consumer - 
         """
-
+        self.__sclog.debug("Closing")
         self._ready = False
         self._shouldClose = True
         if self._getTask is not None and not self._getTask.done():
             self._getTask.cancel()
+
+    @property
+    def subscription(self):
+        """
+        Returns the currently active subscription. 
+        If no subscription is active, you can still use put_nowait to add new data.
+        """
+        if self._subscription == self.__directPutSubscription:
+            return None
+        return self._subscription
 
     @property
     def ready(self):
@@ -227,7 +276,13 @@ class BaseSubscriptionConsumer:
 
 
 class ThreadedSubscriptionProducer(BaseSubscriptionProducer):
-    def __init__(self, defaultSubscriptionType=asyncio.Queue, logger=None, loop=None):
+    def __init__(
+        self,
+        defaultSubscriptionType=asyncio.Queue,
+        logger=None,
+        loop=None,
+        daemonThread=True,
+    ):
         super().__init__(defaultSubscriptionType, logger=logger, ready=False)
 
         self._loop = loop
@@ -235,7 +290,7 @@ class ThreadedSubscriptionProducer(BaseSubscriptionProducer):
             self._loop = asyncio.get_event_loop()
 
         self._producerThread = threading.Thread(target=self._producer)
-        self._producerThread.daemon = True
+        self._producerThread.daemon = daemonThread
         self._producerThread.start()
 
     def _put_nowait(self, data):
@@ -243,10 +298,6 @@ class ThreadedSubscriptionProducer(BaseSubscriptionProducer):
         To be called by the producer thread to insert data.
 
         """
-        # raises a StopIteration if the producer was closed, and the thread should exit
-        # if self._shouldClose:
-        #    raise StopIteration("ThreadedSubscriptionProducer has been closed")
-        # EDIT: no it doesn't because that is just too annoying
         self._loop.call_soon_threadsafe(super()._put_nowait, data)
 
     def _producer(self):
@@ -262,12 +313,13 @@ class ThreadedSubscriptionProducer(BaseSubscriptionProducer):
 
         # We are ready!
         self._ready = True
-        try:
-            while True:
-                # In real code, there should be a timeout in get to make sure _shouldClose is not True
-                self._put_nowait(self.testQueue.get())
-        except StopIteration:
-            self.testResultQueue.put("<<END>>")
+        while not self._shouldClose:
+            # In real code, there should be a timeout in get to make sure _shouldClose is not True
+            try:
+                self._put_nowait(self.testQueue.get(1))
+            except TimeoutError:
+                pass
+        self.testResultQueue.put("<<END>>")
 
     def close(self):
         super().close()
@@ -275,7 +327,13 @@ class ThreadedSubscriptionProducer(BaseSubscriptionProducer):
 
 
 class ThreadedSubscriptionConsumer(BaseSubscriptionConsumer):
-    def __init__(self, directPutSubscriptionType=asyncio.Queue, logger=None, loop=None):
+    def __init__(
+        self,
+        directPutSubscriptionType=asyncio.Queue,
+        logger=None,
+        loop=None,
+        daemonThread=True,
+    ):
         super().__init__(directPutSubscriptionType, logger=logger, ready=False)
 
         self._loop = loop
@@ -292,13 +350,13 @@ class ThreadedSubscriptionConsumer(BaseSubscriptionConsumer):
         self._taskLock = threading.Lock()
 
         self._consumerThread = threading.Thread(target=self._consumer)
-        self._consumerThread.daemon = True
+        self._consumerThread.daemon = daemonThread
         self._consumerThread.start()
 
     def _get(self):
         """
         This is not a coroutine - it is to be called in the worker thread.
-        If the worker thread is to be shut down, raises a StopIteration exception.
+        If the worker thread is to be shut down, raises a SubscriptionClosed exception.
         """
         while not self._shouldClose:
             with self._taskLock:
@@ -306,17 +364,19 @@ class ThreadedSubscriptionConsumer(BaseSubscriptionConsumer):
                     self._subscription.get(), self._loop
                 )
             try:
-                return self._getTask.result(10)
+                return self._getTask.result(1)
             except asyncio.CancelledError:
-                self.__sclog.debug(
-                    "Subscription cancelled - waiting for new subscription's data"
-                )
+                self.__sclog.debug("Subscription cancelled - checking for new tasks")
             except asyncio.TimeoutError:
-                self.__sclog.debug("No incoming data for 10 seconds...")
+                self.__sclog.debug("No incoming data for 1 second...")
+            except SubscriptionClosed:
+                self.__sclog.debug(
+                    "Incoming stream closed... Checking for new subscription"
+                )
         self.__sclog.debug(
-            "close() was called on the aio thread. raising StopIteration."
+            "close() was called on the aio thread. raising SubscriptionClosed."
         )
-        raise StopIteration("ThreadedSubscriptionConsumer has been closed")
+        raise SubscriptionClosed("ThreadedSubscriptionConsumer has been closed")
 
     def _consumer(self):
         """
@@ -337,7 +397,7 @@ class ThreadedSubscriptionConsumer(BaseSubscriptionConsumer):
             while True:
                 data = self._get()
                 self.testQueue.put(data)
-        except StopIteration:
+        except SubscriptionClosed:
             self.testQueue.put("<<END>>")
 
     def putSubscription(self, subscription):
@@ -360,9 +420,7 @@ class SubscriptionConsumer(BaseSubscriptionConsumer):
         return await self._get()
 
 
-class BaseSubscriptionProducerConsumer(
-    BaseSubscriptionConsumer, BaseSubscriptionProducer
-):
+class SubscriptionProducerConsumer(BaseSubscriptionConsumer, BaseSubscriptionProducer):
     """
     This base class represents an object which is both a producer and consumer. This is common
     with two-way connections.

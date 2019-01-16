@@ -5,7 +5,11 @@ import numpy as np
 import soundcard as sc
 
 
-from .base import ThreadedSubscriptionProducer, ThreadedSubscriptionConsumer
+from .base import (
+    ThreadedSubscriptionProducer,
+    ThreadedSubscriptionConsumer,
+    SubscriptionClosed,
+)
 
 
 class Microphone(ThreadedSubscriptionProducer):
@@ -46,7 +50,7 @@ class Microphone(ThreadedSubscriptionProducer):
 
     def _producer(self):
 
-        self._log.debug("Using microphone %s", self._device)
+        self._log.info("Using microphone %s", self._device)
 
         with self._device.recorder(
             samplerate=self._samplerate,
@@ -56,12 +60,13 @@ class Microphone(ThreadedSubscriptionProducer):
             self._ready = True  # Set ready state
             while not self._shouldClose:
                 try:
+                    # TODO: Perhaps some way to time out this command if something froze?
                     audioData = recorder.record(self._blocksize)
                     self._put_nowait(np.transpose(audioData))
                 except:
                     self._log.exception("Error while trying to record audio")
         self._ready = False
-        self._log.debug("Ended audio recording")
+        self._log.info("Ended audio recording")
 
 
 class Speaker(ThreadedSubscriptionConsumer):
@@ -81,7 +86,7 @@ class Speaker(ThreadedSubscriptionConsumer):
         super().__init__(asyncio.Queue, logger=self._log)
 
     def _consumer(self):
-        self._log.debug("Using speaker %s", self._device)
+        self._log.info("Using speaker %s", self._device)
         with self._device.player(
             samplerate=self._samplerate,
             channels=self._channels,
@@ -96,10 +101,11 @@ class Speaker(ThreadedSubscriptionConsumer):
                         # we have channelxsamples but want samplesxchannels
                         data = np.transpose(data)
                     player.play(data)
-                except StopIteration:
+                except SubscriptionClosed:
                     break
                 except:
                     self._log.exception("Error while trying to play audio")
+        self._log.info("Ended audio playback")
 
     def play(self, data):
         """

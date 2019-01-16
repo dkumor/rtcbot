@@ -1,46 +1,291 @@
-
 from aiortc import RTCPeerConnection, RTCSessionDescription
-from aiortc.mediastreams import MediaStreamError, AUDIO_PTIME
-from av import VideoFrame, AudioFrame
-from functools import partial
-
-import numpy as np
-import logging
-import fractions
-import time
 import asyncio
+import logging
 
+from .base import SubscriptionProducerConsumer, SubscriptionProducer, SubscriptionClosed
 from .tracks import VideoSender, AudioSender, AudioReceiver, VideoReceiver
+from .subscriptions import GetterSubscription, MostRecentSubscription
 
 
-class RTCConnection:
+class DataChannel(SubscriptionProducerConsumer):
     """
-    A very basic helper class to make initializing RTC connections easier
+    Represents a data channel. You can put_nowait messages into it, 
+    and subscribe to messages coming from it.
+
     """
 
+    _log = logging.getLogger("rtcbot.RTCConnection.DataChannel")
+
+    def __init__(self, rtcDataChannel):
+        super().__init__(asyncio.Queue, asyncio.Queue, logger=self._log)
+        self._rtcDataChannel = rtcDataChannel
+
+        # Directly put messages
+        self._rtcDataChannel.on("message", self._put_nowait)
+
+        # Make sure we pass messages forward
+        asyncio.ensure_future(self._messageSender())
+
+    async def _messageSender(self):
+        while not self._shouldClose:
+            try:
+                self._rtcDataChannel.send(await self._get())
+            except SubscriptionClosed:
+                pass
+                # The while loop should exit here
+        self._log.debug("Stopping message sender")
+
+    @property
+    def name(self):
+        return self._rtcDataChannel.label
+
+    def close(self):
+        self._rtcDataChannel.close()
+        super().close()
+
+
+class ConnectionVideoHandler(SubscriptionProducerConsumer):
+    """
+    Allows usage of RTCConnection as follows::
+
+        r = RTCConnection()
+        frameSubscription = r.video.subscribe()
+
+        r.video.putSubscription(frameSubscription)
+
+    It uses the first incoming video stream for subscribe(),
+    and creates a single outgoing video stream.
+
+    Subscribing to the tracks can be done
+    """
+
+    _log = logging.getLogger("rtcbot.RTCConnection.ConnectionVideoHandler")
+
+    def __init__(self, rtc):
+        super().__init__(
+            directPutSubscriptionType=MostRecentSubscription,
+            defaultSubscriptionType=MostRecentSubscription,
+            logger=self._log,
+        )
+        self._senders = set()
+        self._receivers = set()
+
+        self._defaultSender = None
+        self._defaultReceiver = None
+
+        # The defaultSender subscribes to this
+        self._defaultSenderSubscription = GetterSubscription(self._get)
+
+        self._trackSubscriber = SubscriptionProducer(
+            logger=self._log.getChild("trackSubscriber")
+        )
+
+        self._rtc = rtc
+
+    def onTrack(self, callback=None):
+        """
+        Callback that gets called each time a video track is received::
+
+            @r.video.onTrack
+            def onTrack(track):
+                print(track)
+
+        The callback actually works exactly as a subscribe(), so you can do::
+
+            subscription = r.video.onTrack()
+            await subscription.get()
+
+        """
+        return self._trackSubscriber.subscribe(callback)
+
+    def addTrack(self, frameSubscription=None, fps=None, canSkip=True):
+        """
+        Allows to send multiple video tracks in a single connection.
+        Each call to putTrack *adds* the track to the connection.
+        For simple usage, where you only have a single video stream,
+        just use `putSubscription` - it automatically calls putTrack for you.
+        """
+        self._log.debug("Adding video track to connection")
+        s = VideoSender(fps=fps, canSkip=True)
+        if frameSubscription is not None:
+            s.putSubscription(frameSubscription)
+        elif self._defaultSender is None:
+            s.putSubscription(self._defaultSenderSubscription)
+        if self._defaultSender is None:
+            self._defaultSender = s
+        self._rtc.addTrack(s.videoStreamTrack)
+        self._senders.add(s)
+        return s
+
+    def putSubscription(self, subscription):
+
+        # We need to make sure that when we put:
+        # 1) there is an actual video track to put to!
+        # 2) the track is subscribed to the VideoHandler
+        super().putSubscription(subscription)
+        if self._defaultSender is None:
+            self.addTrack()
+        # Make sure that this subscription is active on the default track
+        self._defaultSender.putSubscription(self._defaultSenderSubscription)
+
+    def _onTrack(self, track):
+        """
+        Internal raw track receiver
+        """
+        self._log.debug("Received video track from connection")
+        track = VideoReceiver(track)
+        if self._defaultReceiver is None:  # The default receiver track is the first one
+            self._defaultReceiver = track
+            self._defaultReceiver.subscribe(self._put_nowait)
+        self._receivers.add(track)
+        self._trackSubscriber._put_nowait(track)
+
+    def close(self):
+        for t in self._senders:
+            t.close()
+        for t in self._receivers:
+            t.close()
+        self._trackSubscriber.close()
+        super().close()
+
+
+class ConnectionAudioHandler(SubscriptionProducerConsumer):
+    """
+    Allows usage of RTCConnection as follows::
+
+        r = RTCConnection()
+        audioSubscription = r.audio.subscribe()
+
+        r.audio.putSubscription(audioSubscription)
+
+    It uses the first incoming audio stream for subscribe(),
+    and creates a single outgoing audio stream.
+
+    Subscribing to the tracks can be done
+    """
+
+    _log = logging.getLogger("rtcbot.RTCConnection.ConnectionAudioHandler")
+
+    def __init__(self, rtc):
+        super().__init__(
+            directPutSubscriptionType=asyncio.Queue,
+            defaultSubscriptionType=asyncio.Queue,
+            logger=self._log,
+        )
+        self._senders = set()
+        self._receivers = set()
+
+        self._defaultSender = None
+        self._defaultReceiver = None
+
+        # The defaultSender subscribes to this
+        self._defaultSenderSubscription = GetterSubscription(self._get)
+
+        self._trackSubscriber = SubscriptionProducer(
+            logger=self._log.getChild("trackSubscriber")
+        )
+
+        self._rtc = rtc
+
+    def onTrack(self, callback=None):
+        """
+        Callback that gets called each time a video track is received::
+
+            @r.video.onTrack
+            def onTrack(track):
+                print(track)
+
+        The callback actually works exactly as a subscribe(), so you can do::
+
+            subscription = r.video.onTrack()
+            await subscription.get()
+
+        """
+        return self._trackSubscriber.subscribe(callback)
+
+    def addTrack(self, subscription=None, sampleRate=48000, canSkip=True):
+        """
+        Allows to send multiple video tracks in a single connection.
+        Each call to putTrack *adds* the track to the connection.
+        For simple usage, where you only have a single video stream,
+        just use `putSubscription` - it automatically calls putTrack for you.
+        """
+        self._log.debug("Adding audio track to connection")
+        s = AudioSender(sampleRate=sampleRate, canSkip=True)
+        if subscription is not None:
+            s.putSubscription(subscription)
+        elif self._defaultSender is None:
+            s.putSubscription(self._defaultSenderSubscription)
+        if self._defaultSender is None:
+            self._defaultSender = s
+
+        self._rtc.addTrack(s.audioStreamTrack)
+        self._senders.add(s)
+        return s
+
+    def putSubscription(self, subscription):
+
+        # We need to make sure that when we put:
+        # 1) there is an actual track to put to!
+        # 2) the track is subscribed to the handler
+        super().putSubscription(subscription)
+        if self._defaultSender is None:
+            self.addTrack()
+        # Make sure that this subscription is active on the default track
+        self._defaultSender.putSubscription(self._defaultSenderSubscription)
+
+    def _onTrack(self, track):
+        """
+        Internal raw track receiver
+        """
+        self._log.debug("Received audio track from connection")
+        track = AudioReceiver(track)
+        if self._defaultReceiver is None:  # The default receiver track is the first one
+            self._defaultReceiver = track
+            self._defaultReceiver.subscribe(self._put_nowait)
+        self._receivers.add(track)
+        self._trackSubscriber._put_nowait(track)
+
+    def close(self):
+        for t in self._senders:
+            t.close()
+        for t in self._receivers:
+            t.close()
+        self._trackSubscriber.close()
+        super().close()
+
+
+class RTCConnection(SubscriptionProducerConsumer):
     _log = logging.getLogger("rtcbot.RTCConnection")
 
-    def __init__(self, onMessage=None, defaultOrdered=True):
-        self._dataChannels = {}
-        self._videoSubscription = None
-        self._audioSubscription = None
-        self._videoReceiver = None
-        self._audioReceiver = None
+    def __init__(self, defaultChannelOrdered=True, loop=None):
+        super().__init__(
+            directPutSubscriptionType=asyncio.Queue,
+            defaultSubscriptionType=asyncio.Queue,
+            logger=self._log,
+        )
+        self._loop = loop
+        if self._loop is None:
+            self._loop = asyncio.get_event_loop()
 
-        if onMessage:
-            self._msgcallback = onMessage
-        else:
-            self._msgcallback = lambda channel, msg: None
+        self._dataChannels = {}
+
+        # These allow us to easily signal when the given events happen
+        self._dataChannelSubscriber = SubscriptionProducer(
+            logger=self._log.getChild("dataChannelSubscriber")
+        )
 
         self._rtc = RTCPeerConnection()
         self._rtc.on("datachannel", self._onDatachannel)
-        self._rtc.on("iceconnectionstatechange", self._onIceConnectionStateChange)
+        # self._rtc.on("iceconnectionstatechange", self._onIceConnectionStateChange)
         self._rtc.on("track", self._onTrack)
 
         self._hasRemoteDescription = False
         self._defaultChannel = None
-        self._defaultOrdered = defaultOrdered
-        self.__queuedMessages = []
+        self._defaultChannelOrdered = defaultChannelOrdered
+
+        self._videoHandler = ConnectionVideoHandler(self._rtc)
+        self._audioHandler = ConnectionAudioHandler(self._rtc)
 
     async def getLocalDescription(self, description=None):
         """
@@ -68,10 +313,7 @@ class RTCConnection:
         # Before starting init, we create a default data channel for the connection
         self._log.debug("Setting up default data channel")
         self._defaultChannel = self._rtc.createDataChannel(
-            "default", ordered=self._defaultOrdered
-        )
-        self._defaultChannel.on(
-            "message", partial(self._onMessage, self._defaultChannel)
+            "default", ordered=self._defaultChannelOrdered
         )
 
         self._log.debug("Creating new connection offer")
@@ -89,109 +331,64 @@ class RTCConnection:
 
     def _onDatachannel(self, channel):
         """
-        When a data channel comes in, adds it to the data channels, and sets up its messaging and stuff
-        """
-        self._log.debug("Got channel: %s", channel.label)
-        channel.on("message", partial(self._onMessage, channel))
+        When a data channel comes in, adds it to the data channels, and sets up its messaging and stuff.
 
-        if channel.label == "default":
-            # Send any queued messages
-            if len(self.__queuedMessages) > 0:
-                self._log.debug("Sending queued messages")
-                for m in self.__queuedMessages:
-                    channel.send(m)
-                self.__queuedMessages = []
+        """
+        channel = DataChannel(channel)
+        self._log.debug("Got channel: %s", channel.name)
+        if channel.name == "default":
+            # Subscribe the default channel directly to our own inputs and outputs.
+            # We have it listen to our own self._get, and write to our self._put_nowait
+            channel.putSubscription(GetterSubscription(self._get))
+            channel.subscribe(self._put_nowait)
 
             # Set the default channel
             self._defaultChannel = channel
 
         else:
-            self._dataChannels[channel.label] = channel
-
-    def _onIceConnectionStateChange(self):
-        self._log.debug("RTC Connection State %s", self._rtc.iceConnectionState)
+            self._dataChannelSubscriber.put_nowait(channel)
+        self._dataChannels[channel.name] = channel
 
     def _onTrack(self, track):
         self._log.debug("Received %s track from connection", track.kind)
         if track.kind == "audio":
-            self._audioReceiver = AudioReceiver(track)
-            if self._audioSubscription is not None:
-                self._audioSubscription(self._audioReceiver)
+            self._audioHandler._onTrack(track)
         elif track.kind == "video":
-            self._videoReceiver = VideoReceiver(track)
-            if self._videoSubscription is not None:
-                self._videoSubscription(self._videoReceiver)
+            self._videoHandler._onTrack(track)
 
+    @property
+    def video(self):
+        """
+        Convenience function - you can subscribe to it to get video frames once they show up
+        """
+        return self._videoHandler
+
+    @property
+    def audio(self):
+        """
+        Convenience function - you can subscribe to it to get video frames once they show up
+        """
+        return self._audioHandler
+
+    def close(self):
+        """
+        If the loop is running, returns a future that will close the connection. Otherwise, runs
+        the loop temporarily to complete closing.
+        """
+        super().close()
+        # And closes all tracks
+        self.video.close()
+        self.audio.close()
+
+        for dc in self._dataChannels:
+            self._dataChannels[dc].close()
+
+        self._dataChannelSubscriber.close()
+
+        if self._loop.is_running():
+            self._log.debug("Loop is running - close will return a future!")
+            return asyncio.ensure_future(self._rtc.close())
         else:
-            self._log.error("Received unknown track type: %s", track.kind)
-
-    def _onMessage(self, channel, message):
-        self._log.debug("Received message: (%s) %s", channel.label, message)
-        self._msgcallback(channel, message)
-
-    def onMessage(self, msgcallback):
-        self._msgcallback = msgcallback
-
-    def send(self, msg):
-        self._log.debug("Sending message: %s", msg)
-        if self._defaultChannel is not None:
-            self._defaultChannel.send(msg)
-        else:
-            self._log.debug("Waiting for data channel before sending message")
-            self.__queuedMessages.append(msg)
-
-    async def close(self):
-        self._log.debug("Closing connection")
-        for chan in self._dataChannels:
-            self._dataChannels[chan].close()
-        if self._defaultChannel is not None:
-            self._defaultChannel.close()
-        await self._rtc.close()
-
-    def addVideo(self, frameSubscription=None, fps=None, canSkip=True):
-        """
-        Add video to the connection. This should be called before `getLocalDescription` is
-        called, so that the video stream is set up correctly.
-
-        Accepts any object where `await frameSubscription.get()` returns a bgr opencv frame::
-        
-            cam = CVCamera()
-            conn = RTCConnection()
-            conn.addVideo(cam.subscribe())
-
-        Note that if adding video when receiving a remote offer, the RTCConnection only adds the video
-        stream if the remote connection explicitly requests a video stream. 
-
-        The `get()` function will only be called if the video stream is requested, so it is possible to only start
-        video capture on first call of `get()`.
-        """
-        s = VideoSender(fps=fps, canSkip=True)
-        if frameSubscription is not None:
-            s.putSubscription(frameSubscription)
-        self._rtc.addTrack(s.videoStreamTrack)
-        return s
-
-    def addAudio(self, audioSubscription=None, sampleRate=48000, canSkip=True):
-        """
-        Add audio to the connection. Just like the video subscription, `await audioSubscription.get()` should
-        give a numpy array of raw audio samples, with the given sample rate, and given format.
-
-        """
-        s = AudioSender(sampleRate=sampleRate, canSkip=canSkip)
-        if audioSubscription is not None:
-            s.putSubscription(audioSubscription)
-        self._rtc.addTrack(s.audioStreamTrack)
-        return s
-
-    def onAudio(self, callback):
-        self._audioSubscription = callback
-
-    def onVideo(self, callback):
-        self._videoSubscription = callback
-
-    # @property
-    # def video(self):
-    #     """
-    #     Returns whether or not the connection can accept a video stream.
-    #     """
+            self._loop.run_until_complete(self._rtc.close())
+        return None
 
