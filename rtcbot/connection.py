@@ -86,6 +86,8 @@ class ConnectionVideoHandler(SubscriptionProducerConsumer):
 
         self._rtc = rtc
 
+        self._offerToReceive = False
+
     def onTrack(self, callback=None):
         """
         Callback that gets called each time a video track is received::
@@ -152,6 +154,18 @@ class ConnectionVideoHandler(SubscriptionProducerConsumer):
         self._trackSubscriber.close()
         super().close()
 
+    def offerToReceive(self):
+        """
+        This is called automatically on subscribe, but is also available
+        just in case you want delay subscribing until later.
+        """
+        self._offerToReceive = True
+
+    def subscribe(self, subscription=None):
+
+        self.offerToReceive()
+        return super().subscribe(subscription)
+
 
 class ConnectionAudioHandler(SubscriptionProducerConsumer):
     """
@@ -190,6 +204,8 @@ class ConnectionAudioHandler(SubscriptionProducerConsumer):
         )
 
         self._rtc = rtc
+
+        self._offerToReceive = False
 
     def onTrack(self, callback=None):
         """
@@ -258,6 +274,18 @@ class ConnectionAudioHandler(SubscriptionProducerConsumer):
         self._trackSubscriber.close()
         super().close()
 
+    def offerToReceive(self):
+        """
+        This is called automatically on subscribe, but is also available
+        just in case you want delay subscribing until later.
+        """
+        self._offerToReceive = True
+
+    def subscribe(self, subscription=None):
+
+        self.offerToReceive()
+        return super().subscribe(subscription)
+
 
 class RTCConnection(SubscriptionProducerConsumer):
     _log = logging.getLogger("rtcbot.RTCConnection")
@@ -303,7 +331,13 @@ class RTCConnection(SubscriptionProducerConsumer):
             if not self._hasRemoteDescription:
                 await self.setRemoteDescription(description)
             self._log.debug("Creating response to connection offer")
-            answer = await self._rtc.createAnswer()
+            try:
+                answer = await self._rtc.createAnswer()
+            except AttributeError:
+                self._log.exception(
+                    "\n>>> Looks like the offer didn't include the necessary info to set up audio/video. See RTCConnection.video.offerToReceive(). <<<\n\n"
+                )
+                raise
             await self._rtc.setLocalDescription(answer)
             return {
                 "sdp": self._rtc.localDescription.sdp,
@@ -323,6 +357,14 @@ class RTCConnection(SubscriptionProducerConsumer):
         channel.putSubscription(GetterSubscription(self._get))
         channel.subscribe(self._put_nowait)
         self._dataChannels[channel.name] = channel
+
+        # Make sure we offer to receive video and audio if if isn't set up yet
+        if len(self.video._senders) == 0 and self.video._offerToReceive:
+            self._log.debug("Offering to receive video")
+            self._rtc.addTransceiver("video", "recvonly")
+        if len(self.audio._senders) == 0 and self.audio._offerToReceive:
+            self._log.debug("Offering to receive audio")
+            self._rtc.addTransceiver("audio", "recvonly")
 
         self._log.debug("Creating new connection offer")
         offer = await self._rtc.createOffer()
