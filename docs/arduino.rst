@@ -219,4 +219,5 @@ API
 .. automodule:: rtcbot.arduino
     :members:
     :undoc-members:
+    :inherited-members:
     :show-inheritance:

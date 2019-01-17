@@ -48,12 +48,14 @@ class DataChannel(SubscriptionProducerConsumer):
 
 class ConnectionVideoHandler(SubscriptionProducerConsumer):
     """
-    Allows usage of RTCConnection as follows::
 
-        r = RTCConnection()
-        frameSubscription = r.video.subscribe()
+    :Example:
+        Allows usage of RTCConnection as follows::
 
-        r.video.putSubscription(frameSubscription)
+            r = RTCConnection()
+            frameSubscription = r.video.subscribe()
+
+            r.video.putSubscription(frameSubscription)
 
     It uses the first incoming video stream for subscribe(),
     and creates a single outgoing video stream.

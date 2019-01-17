@@ -1,4 +1,3 @@
-import threading
 import asyncio
 import logging
 import time

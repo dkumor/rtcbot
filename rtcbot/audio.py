@@ -10,6 +10,7 @@ from .base import (
     ThreadedSubscriptionConsumer,
     SubscriptionClosed,
 )
+from typing import Union, List
 
 
 class Microphone(ThreadedSubscriptionProducer):
@@ -17,18 +18,17 @@ class Microphone(ThreadedSubscriptionProducer):
     Reads microphone data, and writes audio output. This class allows you to
     output sound while reading it.
 
-    Parameters
-    ----------
-    samplerate: int
-        The sampling rate in Hz. 
-    channels: {int, list(int)}, optional
-        Mirrors the SoundCard `Microphone.recorder` API. 
-        By default records on all available channels.
-    blocksize: int
-        Records this many samples at a time. A lower block size will give lower latency,
-        and lower CPU usage.
-    device: soundcard._Microphone
-        The `soundcard` device to record from. Uses default if not specified.
+    Args:
+        samplerate (int,optional): 
+            The sampling rate in Hz. Default is 48000.
+        channels (int,list(int),optional):
+            The index of channel to record. 
+            Allows a list of indices. Records on all available channels by default.
+        blocksize (int,optional): 
+            Records this many samples at a time. A lower block size will give lower latency,
+            but higher CPU usage.
+        device (:class:`soundcard._Microphone`):
+            The :mod:`soundcard` device to record from. Uses default if not specified.
     
     
     """
@@ -36,7 +36,12 @@ class Microphone(ThreadedSubscriptionProducer):
     _log = logging.getLogger("rtcbot.Microphone")
 
     def __init__(
-        self, samplerate=48000, channels=None, blocksize=1024, device=None, loop=None
+        self,
+        samplerate: int = 48000,
+        channels: Union[int, List[int]] = None,
+        blocksize: int = 1024,
+        device=None,
+        loop=None,
     ):
         if device is None:
             device = sc.default_microphone()

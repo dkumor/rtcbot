@@ -124,6 +124,7 @@ class DelayedSubscription:
 
     Parameters
     ----------
+    
         SubscriptionWriter: BaseSubscriptionWriter
             An object with a subscribe method
         subscription: (optional)

@@ -12,4 +12,5 @@ API
 .. automodule:: rtcbot.audio
     :members:
     :undoc-members:
+    :inherited-members:
     :show-inheritance:

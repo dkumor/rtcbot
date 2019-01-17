@@ -8,7 +8,7 @@ creating a video-streaming robot controlled entirely over a 4G mobile connection
 all the way to a powerful system that offloads complex computation to a desktop PC in real-time.
 
 All communication happens through `WebRTC <https://en.wikipedia.org/wiki/WebRTC>`_, 
-using Python 3's asyncio and the wonderful `aiortc <https://github.com/jlaine/aiortc>`_ library,
+using Python 3's asyncio and the wonderful `aiortc <https://aiortc.readthedocs.io/en/latest/index.html>`_ library,
 meaning that your robot can be controlled with low latency both from the browser and through Python,
 even when it is not connected to your local network.
 
