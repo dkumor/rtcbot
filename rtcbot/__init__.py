@@ -6,3 +6,4 @@ from .inputs import Gamepad, Mouse, Keyboard
 from .arduino import SerialConnection
 from .subscriptions import *
 from .javascript import getRTCBotJS
+from .devices import *
