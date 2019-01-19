@@ -6,39 +6,36 @@ import serial
 import serial_asyncio
 import struct
 
+from .base import SubscriptionProducerConsumer, SubscriptionClosed
 
-class SerialConnection(asyncio.Protocol):
-    """
-    Handles sending and receiving commands to/from an arduino using a serial port.
-    
-    By default, reads and writes bytes from/to the serial port, splitting incoming messages
-    by newline. To return raw messages (without splitting), use :code:`readFormat=None`.
 
-    Messages are read into an :code:`asyncio.Queue` object, which is created for you if it is not given.
-
-    If a :code:`writeFormat` or :code:`readFormat` is given, they are interpreted as `struct format strings <https://docs.python.org/3/library/struct.html#format-strings>`_,
-    and all incoming or outgoing messages are assumed to conform to the given format. Without setting :code:`readKeys` or :code:`writeKeys`,
-    the messages are assumed to be tuples or lists.
-
-    When given a list of strings for :code:`readKeys` or :code:`writeKeys`, the write or read formats are assumed to come from
-    objects with the given keys. Using these, a SerialConnection can read/write python dicts to the associated structure formats.
-    
-    """
+class _serialProtocol(asyncio.Protocol):
+    _log = logging.getLogger("rtcbot.SerialConnection")
 
     def __init__(
         self,
+        putter,
         url="/dev/ttyS0",
         readFormat="\n",
         writeFormat=None,
         baudrate=115200,
-        readQueue=None,
         writeKeys=None,
         readKeys=None,
+        startByte=None,
         loop=None,
     ):
-        if readQueue is None:
-            readQueue = asyncio.Queue()
-        self._readQueue = readQueue
+        self.putter = putter
+
+        # The startByte is actually a byte array
+        self.startByte = startByte
+        self.started = startByte is None  # if not started, wait
+
+        if self.startByte is not None:
+            # We want it to be a bytes object
+            try:
+                len(self.startByte)
+            except:
+                self.startByte = bytes([self.startByte])
 
         self.readFormat = readFormat
         self.readStruct = None
@@ -53,32 +50,12 @@ class SerialConnection(asyncio.Protocol):
 
         self.incomingMessageBuffer = bytes()
 
-        self.log = logging.getLogger("rtcbot.SerialConnection")
-
         ser = serial.serial_for_url(url, baudrate=baudrate)
+        ser.rts = False
 
         if loop is None:
             loop = asyncio.get_event_loop()
         self.transport = serial_asyncio.SerialTransport(loop, self, ser)
-
-    @property
-    def readQueue(self):
-        """
-        The :code:`asyncio.Queue` holding decoded messages. Returns the passed in queue if one was given when initializing the SerialConnection. You read messages from the Arduino by getting::
-
-            message = await conn.readQueue.get()
-
-        If :code:`readKeys` were given, this gives a dict, and if readKeys were not given, returns a tuple containing
-        the decoded values from the :code:`readFormat`. 
-        
-        If no read format string was given, the queue holds bytes objects
-        each containing one message from the Arduino. To convert one such message to a string, call::
-
-            message.decode('ascii')
-
-        Finally, if the readFormat is set to None, the SerialConnection enqueues data as it is received, without processing.
-        """
-        return self._readQueue
 
     def write(self, msg):
         """
@@ -91,13 +68,13 @@ class SerialConnection(asyncio.Protocol):
         An error is raised if the list is the wrong size or object does not contain all of the required keys. 
         An error is also raised if the given object cannot cleanly convert into the struct type.
         """
-        self.log.debug("sendmsg: %s", msg)
+        self._log.debug("sendmsg: %s", msg)
         if self.isConnected():
             if self.writeStruct is not None:
                 if self.writeKeys is not None:
                     msg = [msg[key] for key in self.writeKeys]
                 packedMessage = self.writeStruct.pack(*msg)
-                self.log.debug("send %s", packedMessage)
+                self._log.debug("send %s", packedMessage)
                 self.transport.write(packedMessage)
             else:
                 try:
@@ -113,7 +90,7 @@ class SerialConnection(asyncio.Protocol):
         """
         Returns whether the serial port is active. 
         """
-        return self.transport is not None
+        return self.transport is not None and self.started
 
     def connection_made(self, transport):
         """
@@ -121,7 +98,7 @@ class SerialConnection(asyncio.Protocol):
 
         Do not call this function.
         """
-        self.log.debug("Serial Connection Made")
+        self._log.debug("Serial Connection Made")
 
     def connection_lost(self, exc):
         """
@@ -129,7 +106,7 @@ class SerialConnection(asyncio.Protocol):
 
         Do not call this function.
         """
-        self.log.warn("Serial Connection Lost")
+        self._log.warn("Serial Connection Lost")
         self.transport = None
 
     def data_received(self, data):
@@ -140,8 +117,25 @@ class SerialConnection(asyncio.Protocol):
 
         Do not call this function.
         """
-        self.log.debug("recv %s", data)
+        self._log.debug("recv %s", data)
         self.incomingMessageBuffer += data
+
+        if not self.started:
+            # Need to check the startByte to see if we can receive
+            if not self.startByte in self.incomingMessageBuffer:
+                # We cut the buffer to size, removing data that can't be part of start byte
+                if len(self.startByte) < len(self.incomingMessageBuffer):
+                    self.incomingMessageBuffer = self.incomingMessageBuffer[
+                        -len(self.startByte) :
+                    ]
+                self._log.debug("Ignoring: start byte %s not found", self.startByte)
+                return
+            else:
+                self._log.debug("startBytes %s found - starting read", self.startByte)
+                _, self.incomingMessageBuffer = self.incomingMessageBuffer.split(
+                    self.startByte, 1
+                )
+                self.started = True
 
         if self.readStruct is not None:
             while len(self.incomingMessageBuffer) >= self.readStruct.size:
@@ -154,10 +148,10 @@ class SerialConnection(asyncio.Protocol):
 
                 if self.readKeys is not None:
                     msg = dict(zip(self.readKeys, msg))
-                self.log.debug("recvmsg: %s", msg)
-                self._readQueue.put_nowait(msg)
+                self._log.debug("recvmsg: %s", msg)
+                self.putter(msg)
         elif self.readFormat is None:
-            self._readQueue.put_nowait(self.incomingMessageBuffer)
+            self.putter(self.incomingMessageBuffer)
             self.incomingMessageBuffer = bytes()
         else:
             # We split by line:
@@ -167,6 +161,91 @@ class SerialConnection(asyncio.Protocol):
                 # This returns the bytes object of the line.
                 # We don't convert to string, since people might be sending non-ascii characters.
                 # When receiving, the user should use .decode('ascii') to get a a string.
-                self.log.debug("recvmsg: %s", outputArray[i])
-                self._readQueue.put_nowait(outputArray[i])
+                self._log.debug("recvmsg: %s", outputArray[i])
+                self.putter(outputArray[i])
+
+
+class SerialConnection(SubscriptionProducerConsumer):
+    """
+    Handles sending and receiving commands to/from a a serial port. Has built-in support
+    for sending structs to/from Arduinos.
+    
+    By default, reads and writes bytes from/to the serial port, splitting incoming messages
+    by newline. To return raw messages (without splitting), use :code:`readFormat=None`.
+
+    If a :code:`writeFormat` or :code:`readFormat` is given, they are interpreted as `struct format strings <https://docs.python.org/3/library/struct.html#format-strings>`_,
+    and all incoming or outgoing messages are assumed to conform to the given format. Without setting :code:`readKeys` or :code:`writeKeys`,
+    the messages are assumed to be tuples or lists.
+
+    When given a list of strings for :code:`readKeys` or :code:`writeKeys`, the write or read formats are assumed to come from
+    objects with the given keys. Using these, a SerialConnection can read/write python dicts to the associated structure formats.
+    
+    """
+
+    _log = logging.getLogger("rtcbot.SerialConnection")
+
+    def __init__(
+        self,
+        url="/dev/ttyS0",
+        readFormat="\n",
+        writeFormat=None,
+        baudrate=115200,
+        writeKeys=None,
+        readKeys=None,
+        startByte=None,
+        delayWriteStart=0,
+        loop=None,
+    ):
+        super().__init__(
+            directPutSubscriptionType=asyncio.Queue,
+            defaultSubscriptionType=asyncio.Queue,
+            logger=self._log,
+            ready=False,
+            defaultAutosubscribe=False,
+        )
+
+        self._protocol = _serialProtocol(
+            self._put_nowait,
+            url=url,
+            readFormat=readFormat,
+            writeFormat=writeFormat,
+            baudrate=baudrate,
+            writeKeys=writeKeys,
+            readKeys=readKeys,
+            startByte=startByte,
+            loop=loop,
+        )
+
+        # If we toggle DTR, it waits for an arduino reset
+        # https://stackoverflow.com/questions/21073086/wait-on-arduino-auto-reset-using-pyserial
+        self._delayStart = delayWriteStart
+
+        # and now we create an async task which loops putting data into the serial connection.
+        asyncio.ensure_future(self._dataWriter())
+
+    async def _dataWriter(self):
+        while not self._ready:
+            await asyncio.sleep(0.01)
+        self._log.debug("Connection opened")
+        if self._delayStart > 0:
+            self._log.debug("Delaying write start by %f seconds", self._delayStart)
+            await asyncio.sleep(self._delayStart)
+        self._log.debug("Starting connection data writer")
+
+        while not self._shouldClose:
+            try:
+                data = await self._get()
+                self._protocol.write(data)
+            except SubscriptionClosed:
+                pass
+        self._log("Shutting down serial connection")
+        self._protocol.transport.close()
+
+    @property
+    def _ready(self):
+        return self._protocol.isConnected()
+
+    @_ready.setter
+    def _ready(self, value):
+        pass  # nope, ready is determined by connection state.
 

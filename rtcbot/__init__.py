@@ -3,5 +3,6 @@ from .connection import RTCConnection
 from .camera import CVCamera, PiCamera, CVDisplay
 from .audio import Microphone, Speaker
 from .inputs import Gamepad, Mouse, Keyboard
+from .arduino import SerialConnection
 from .subscriptions import *
 from .javascript import getRTCBotJS

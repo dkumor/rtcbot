@@ -29,7 +29,7 @@ Assuming that you have connected the Pi to an Arduino with a USB cable, you can 
             print(msg)
             await asyncio.sleep(1)
 
-    asyncio.ensure_future(sendAndReceive(sc))
+    asyncio.ensure_future(sendAndReceive(conn))
 
     asyncio.get_event_loop().run_forever()
 
@@ -38,7 +38,7 @@ Given the corresponding Arduino code,
 
 .. code-block:: c++
 
-    void init() {
+    void setup() {
         Serial.begin(115200);
     }
     void loop() {
@@ -158,7 +158,7 @@ The above can be demonstrated with a full example that sends and receives messag
     controlMessage cMsg;
     sensorMessage sMsg;
 
-    void init() {
+    void setup() {
         Serial.begin(115200);
     }
     void loop() {
