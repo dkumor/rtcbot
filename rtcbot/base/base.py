@@ -1,11 +1,8 @@
 import asyncio
-import threading
 import logging
-import time
 import inspect
-import multiprocessing
-import queue
-import signal
+
+from .events import baseEventHandler
 
 
 class SubscriptionClosed(Exception):
@@ -17,7 +14,7 @@ class SubscriptionClosed(Exception):
     pass
 
 
-class BaseSubscriptionProducer:
+class BaseSubscriptionProducer(baseEventHandler):
     """
     This is a base class upon which all things that emit data in RTCBot are built.
 
@@ -83,7 +80,6 @@ class BaseSubscriptionProducer:
         defaultSubscriptionClass=asyncio.Queue,
         defaultAutosubscribe=False,
         logger=None,
-        ready=True,
     ):
         self.__subscriptions = set()
         self.__callbacks = set()
@@ -102,12 +98,10 @@ class BaseSubscriptionProducer:
         else:
             self.__splog = logger.getChild("SubscriptionProducer")
 
-        #: This needs to be manually set to :code:`True` once the producer has finished initialization and is ready to receive data.
-        #: It should only be called by the subclass, and set before sending any data.
-        self._ready = ready
-
         if defaultAutosubscribe:
             self.__defaultSubscribe()
+
+        super().__init__(self.__splog)
 
     def subscribe(self, subscription=None):
         """
@@ -274,19 +268,9 @@ class BaseSubscriptionProducer:
         self.__splog.debug("Closing")
         self._shouldClose = True
         self.unsubscribeAll()
-        self._ready = False
-
-    @property
-    def ready(self):
-        """
-        This is :code:`True` when the class has been fully initialized. It becomes `False` when the class has been closed. 
-        You usually don't need to use this,
-        since :func:`subscribe` will work even if the class is still starting up in the background.
-        """
-        return self._ready  # No need to lock, as this thread only reads a binary T/F
 
 
-class BaseSubscriptionConsumer:
+class BaseSubscriptionConsumer(baseEventHandler):
     """
     A base class upon which consumers of subscriptions can be built. 
 
@@ -294,9 +278,7 @@ class BaseSubscriptionConsumer:
     all the other annoying stuff.
     """
 
-    def __init__(
-        self, directPutSubscriptionType=asyncio.Queue, logger=None, ready=True
-    ):
+    def __init__(self, directPutSubscriptionType=asyncio.Queue, logger=None):
 
         self.__directPutSubscriptionType = directPutSubscriptionType
         self.__directPutSubscription = directPutSubscriptionType()
@@ -314,8 +296,7 @@ class BaseSubscriptionConsumer:
         else:
             self.__sclog = logger.getChild("SubscriptionConsumer")
 
-        # Once all init is finished, need to set self._ready to True
-        self._ready = ready
+        super().__init__(self.__sclog)
 
     async def _get(self):
         """
@@ -410,7 +391,6 @@ class BaseSubscriptionConsumer:
         Cleans up and closes the object.
         """
         self.__sclog.debug("Closing")
-        self._ready = False
         self._shouldClose = True
         if self._getTask is not None and not self._getTask.done():
             self._getTask.cancel()
@@ -424,289 +404,6 @@ class BaseSubscriptionConsumer:
         if self._subscription == self.__directPutSubscription:
             return None
         return self._subscription
-
-    @property
-    def ready(self):
-        """
-        This is `True` when the class has been fully initialized. You usually don't need to use this,
-        since :func:`put_nowait` and func:`putSubscription` will work even if the class is still starting up in the background.
-        """
-        return self._ready  # No need to lock, as this thread only reads a binary T/F
-
-
-class ThreadedSubscriptionProducer(BaseSubscriptionProducer):
-    def __init__(
-        self,
-        defaultSubscriptionType=asyncio.Queue,
-        logger=None,
-        loop=None,
-        daemonThread=True,
-    ):
-        super().__init__(defaultSubscriptionType, logger=logger, ready=False)
-
-        self._loop = loop
-        if self._loop is None:
-            self._loop = asyncio.get_event_loop()
-
-        self._producerThread = threading.Thread(target=self._producer)
-        self._producerThread.daemon = daemonThread
-        self._producerThread.start()
-
-    def _put_nowait(self, data):
-        """
-        To be called by the producer thread to insert data.
-
-        """
-        self._loop.call_soon_threadsafe(super()._put_nowait, data)
-
-    def _producer(self):
-        """
-        This is the function run in another thread. You override the function with your own logic.
-
-        The base implementation is used for testing
-        """
-        import queue
-
-        self.testQueue = queue.Queue()
-        self.testResultQueue = queue.Queue()
-
-        # We are ready!
-        self._ready = True
-        while not self._shouldClose:
-            # In real code, there should be a timeout in get to make sure _shouldClose is not True
-            try:
-                self._put_nowait(self.testQueue.get(1))
-            except TimeoutError:
-                pass
-        self.testResultQueue.put("<<END>>")
-
-    def close(self):
-        """
-        Shuts down data gathering, and closes all subscriptions. Note that it is not recommended
-        to call this in an async function, since it waits until the background thread joins.
-
-        The object is meant to be used as a singleton, which is initialized at the start of your code,
-        and is closed at the end.
-        """
-        super().close()
-        self._producerThread.join()
-
-
-class ProcessSubscriptionProducer(BaseSubscriptionProducer):
-    def __init__(
-        self,
-        defaultSubscriptionType=asyncio.Queue,
-        logger=None,
-        loop=None,
-        daemonProcess=True,
-        joinTimeout=1,
-    ):
-        self._joinTimeout = joinTimeout
-        if logger is None:
-            self.__splog = logging.getLogger(self.__class__.__name__).getChild(
-                "ProcessSubscriptionProducer"
-            )
-        else:
-            self.__splog = logger.getChild("ProcessSubscriptionConsumer")
-
-        self.__readyEvent = multiprocessing.Event()
-        self.__closeEvent = multiprocessing.Event()
-
-        super().__init__(defaultSubscriptionType, logger=logger, ready=False)
-
-        self._loop = loop
-        if self._loop is None:
-            self._loop = asyncio.get_event_loop()
-
-        self._producerQueue = multiprocessing.Queue()
-
-        self.__queueReaderThread = threading.Thread(target=self.__queueReader)
-        self.__queueReaderThread.daemon = True
-        self.__queueReaderThread.start()
-
-        self._producerProcess = multiprocessing.Process(target=self.__producerSetup)
-        self._producerProcess.daemon = daemonProcess
-        self._producerProcess.start()
-
-    @property
-    def _shouldClose(self):
-        # We need to check the event
-        return self.__closeEvent.is_set()
-
-    @_shouldClose.setter
-    def _shouldClose(self, value):
-        self.__splog.debug("Setting _shouldClose to %s", value)
-        if value:
-            self.__closeEvent.set()
-        else:
-            self.__closeEvent.clear()
-
-    @property
-    def _ready(self):
-        # We need to check the event
-        return self.__readyEvent.is_set()
-
-    @_ready.setter
-    def _ready(self, value):
-        self.__splog.debug("setting _ready to %s", value)
-        if value:
-            self.__readyEvent.set()
-        else:
-            self.__readyEvent.clear()
-
-    def __queueReader(self):
-        while not self._shouldClose:
-            try:
-                data = self._producerQueue.get(timeout=self._joinTimeout)
-                self.__splog.debug("Received data from remote process")
-                self._loop.call_soon_threadsafe(super()._put_nowait, data)
-            except queue.Empty:
-                pass  # No need to notify each time we check whether we chould close
-
-    def _put_nowait(self, data):
-        """
-        To be called by the producer thread to insert data.
-
-        """
-        self.__splog.debug("Sending data from remote process")
-        self._producerQueue.put_nowait(data)
-
-    def __producerSetup(self):
-        # This function sets up the producer. In particular, it receives KeyboardInterrupts
-
-        def handleInterrupt(sig, frame):
-            self.__splog.warning("Received KeyboardInterrupt - not notifying process")
-
-        old_handler = signal.signal(signal.SIGINT, handleInterrupt)
-        try:
-            self._producer()
-        except:
-            self.__splog.exception("The remote process had an exception!")
-        self._ready = False
-        self._shouldClose = True
-
-        signal.signal(signal.SIGINT, old_handler)
-
-        self.__splog.debug("Exiting remote process")
-
-    def _producer(self):
-        """
-        This is the function run in another thread. You override the function with your own logic.
-
-        The base implementation is used for testing
-        """
-
-        # We are ready!
-        self._ready = True
-        # Have to think how to make this work
-        # in testing
-
-    def close(self):
-        """
-        Shuts down data gathering, and closes all subscriptions. Note that it is not recommended
-        to call this in an async function, since it waits until the background thread joins.
-
-        The object is meant to be used as a singleton, which is initialized at the start of your code,
-        and is closed at the end.
-        """
-        super().close()
-        self._producerProcess.join(self._joinTimeout)
-        self.__queueReaderThread.join()
-        if self._producerProcess.is_alive():
-            self.__splog.warning("Process did not terminate in time. Killing it.")
-            self._producerProcess.terminate()
-            self._producerProcess.join()
-
-
-class ThreadedSubscriptionConsumer(BaseSubscriptionConsumer):
-    def __init__(
-        self,
-        directPutSubscriptionType=asyncio.Queue,
-        logger=None,
-        loop=None,
-        daemonThread=True,
-    ):
-        super().__init__(directPutSubscriptionType, logger=logger, ready=False)
-
-        self._loop = loop
-        if self._loop is None:
-            self._loop = asyncio.get_event_loop()
-
-        if logger is None:
-            self.__sclog = logging.getLogger(self.__class__.__name__).getChild(
-                "ThreadedSubscriptionConsumer"
-            )
-        else:
-            self.__sclog = logger.getChild("ThreadedSubscriptionConsumer")
-
-        self._taskLock = threading.Lock()
-
-        self._consumerThread = threading.Thread(target=self._consumer)
-        self._consumerThread.daemon = daemonThread
-        self._consumerThread.start()
-
-    def _get(self):
-        """
-        This is not a coroutine - it is to be called in the worker thread.
-        If the worker thread is to be shut down, raises a SubscriptionClosed exception.
-        """
-        while not self._shouldClose:
-            with self._taskLock:
-                self._getTask = asyncio.run_coroutine_threadsafe(
-                    self._subscription.get(), self._loop
-                )
-            try:
-                return self._getTask.result(1)
-            except asyncio.CancelledError:
-                self.__sclog.debug("Subscription cancelled - checking for new tasks")
-            except asyncio.TimeoutError:
-                self.__sclog.debug("No incoming data for 1 second...")
-            except SubscriptionClosed:
-                self.__sclog.debug(
-                    "Incoming stream closed... Checking for new subscription"
-                )
-        self.__sclog.debug(
-            "close() was called on the aio thread. raising SubscriptionClosed."
-        )
-        raise SubscriptionClosed("ThreadedSubscriptionConsumer has been closed")
-
-    def _consumer(self):
-        """
-        This is the function that is to be overloaded by the superclass to read data.
-        It is run in a separate thread. It should call self._get() to get the next datapoint coming
-        from a subscription.
-
-        The default implementation is used for testing
-        """
-
-        import queue
-
-        self.testQueue = queue.Queue()
-
-        # We are ready!
-        self._ready = True
-        try:
-            while True:
-                data = self._get()
-                self.testQueue.put(data)
-        except SubscriptionClosed:
-            self.testQueue.put("<<END>>")
-
-    def putSubscription(self, subscription):
-        with self._taskLock:
-            super().putSubscription(subscription)
-
-    def close(self):
-        """
-        Closes the object. Note that it is not recommended
-        to call this in an async function, since it waits until the background thread joins.
-
-        The object is meant to be used as a singleton, which is initialized at the start of your code,
-        and is closed at the end.
-        """
-        with self._taskLock:
-            super().close()
-        self._consumerThread.join()
 
 
 class SubscriptionProducer(BaseSubscriptionProducer):
@@ -732,17 +429,15 @@ class SubscriptionProducerConsumer(BaseSubscriptionConsumer, BaseSubscriptionPro
         directPutSubscriptionType=asyncio.Queue,
         defaultSubscriptionType=asyncio.Queue,
         logger=None,
-        ready=False,
         defaultAutosubscribe=False,
     ):
         BaseSubscriptionConsumer.__init__(
-            self, directPutSubscriptionType, logger=logger, ready=ready
+            self, directPutSubscriptionType, logger=logger
         )
         BaseSubscriptionProducer.__init__(
             self,
             defaultSubscriptionType,
             logger=logger,
-            ready=ready,
             defaultAutosubscribe=defaultAutosubscribe,
         )
 

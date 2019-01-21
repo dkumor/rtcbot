@@ -6,6 +6,27 @@ import logging
 from collections import deque
 
 
+class EventSubscription:
+    """
+    This is a subscription that is fired once - upon the first insert.
+    """
+
+    def __init__(self):
+        self.__evt = asyncio.Event()
+        self.__value = None
+
+    def put_nowait(self, value):
+        self.__value = value
+        self.__evt.set()
+
+    async def get(self):
+        await self.__evt
+        return self.__value
+
+    def __await__(self):
+        return self.get().__await__()
+
+
 class MostRecentSubscription:
     """
     The MostRecentSubscription always returns the most recently added element.

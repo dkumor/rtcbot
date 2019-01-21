@@ -33,13 +33,14 @@ class CVCamera(ThreadedSubscriptionProducer):
         preprocessframe=lambda x: x,
         loop=None,
     ):
-        super().__init__(MostRecentSubscription, self._log, loop=loop)
 
         self._width = width
         self._height = height
         self._cameranumber = cameranumber
         self._fps = fps
         self._processframe = preprocessframe
+
+        super().__init__(MostRecentSubscription, self._log, loop=loop)
 
     def _producer(self):
         """
@@ -55,13 +56,14 @@ class CVCamera(ThreadedSubscriptionProducer):
         if not ret:
             self._log.error(f"Camera Read Failed {ret}")
             cap.release()
+            self._setError(ret)
             return
         else:
             self._log.debug("Camera Ready")
 
         t = time.time()
         i = 0
-        self._ready = True
+        self._setReady(True)
         while not self._shouldClose:
             ret, frame = cap.read()
             if not ret:
@@ -79,7 +81,7 @@ class CVCamera(ThreadedSubscriptionProducer):
                     i = 0
                     t = time.time()
         cap.release()
-        self._ready = False
+        self._setReady(False)
         self._log.info("Ended camera capture")
 
     def subscribe(self, subscription=None):
@@ -137,7 +139,7 @@ class PiCamera(CVCamera):
             cam.framerate = self._fps
             time.sleep(2)  # Why is this needed?
             self._log.debug("PiCamera Ready")
-            self._ready = True
+            self._setReady(True)
 
             t = time.time()
             i = 0
@@ -155,10 +157,10 @@ class PiCamera(CVCamera):
 
                 i += 1
                 if time.time() > t + 1:
-                    log.debug(f" {i} fps")
+                    self._log.debug(f" {i} fps")
                     i = 0
                     t = time.time()
-        self._ready = False
+        self._setReady(False)
         self._log.info("Closed camera capture")
 
 
@@ -178,16 +180,17 @@ class CVDisplay(ThreadedSubscriptionConsumer):
         super().__init__(MostRecentSubscription, self._log, loop=loop)
 
     def _consumer(self):
-        self._ready = True
+        self._setReady(True)
         try:
             while not self._shouldClose:
                 frame = self._get()
                 cv2.imshow(self._name, frame)
                 if cv2.waitKey(1) == 27:
+                    self._setError("ESCAPE_PRESSED")
                     break  # esc to quit
         except SubscriptionClosed:
             pass
-        self._ready = False
+        self._setReady(False)
         cv2.destroyWindow(self._name)
         self._log.debug("Ended video display")
 

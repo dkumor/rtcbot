@@ -136,10 +136,10 @@ class AudioSender(BaseSubscriptionConsumer):
     _log = logging.getLogger("rtcbot.RTCConnection.AudioSender")
 
     def __init__(self, sampleRate=48000, canSkip=True):
-        super().__init__(logger=self._log, ready=False)
+        super().__init__(logger=self._log)
 
         def readySetter():
-            self._ready = True
+            self._setReady(True)
 
         # The RTCConnection will take this object, and aiortc
         # will take it from here.
@@ -225,10 +225,10 @@ class VideoSender(BaseSubscriptionConsumer):
     _log = logging.getLogger("rtcbot.RTCConnection.VideoSender")
 
     def __init__(self, fps=None, canSkip=True):
-        super().__init__(MostRecentSubscription, logger=self._log, ready=False)
+        super().__init__(MostRecentSubscription, logger=self._log)
 
         def readySetter():
-            self._ready = True
+            self._setReady(True)
 
         # The RTCConnection will take this object, and aiortc
         # will take it from here.
@@ -266,7 +266,7 @@ class AudioReceiver(BaseSubscriptionProducer):
         self._sampleRate = audioFrame.sample_rate
 
         # Once we receive the first audio frame, we are ready
-        self._ready = True
+        self._setReady(True)
         while not self._shouldClose:
             # Decode the frame
 
@@ -316,7 +316,7 @@ class VideoReceiver(BaseSubscriptionProducer):
             return
 
         # Once we receive the first frame, we are ready
-        self._ready = True
+        self._setReady(True)
         while not self._shouldClose:
 
             # Decode the frame

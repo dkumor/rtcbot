@@ -62,7 +62,7 @@ class Microphone(ThreadedSubscriptionProducer):
             channels=self._channels,
             blocksize=self._blocksize,
         ) as recorder:
-            self._ready = True  # Set ready state
+            self._setReady(True)  # Set ready state
             while not self._shouldClose:
                 try:
                     # TODO: Perhaps some way to time out this command if something froze?
@@ -70,7 +70,7 @@ class Microphone(ThreadedSubscriptionProducer):
                     self._put_nowait(np.transpose(audioData))
                 except:
                     self._log.exception("Error while trying to record audio")
-        self._ready = False
+        self._setReady(False)
         self._log.info("Ended audio recording")
 
 
@@ -97,7 +97,7 @@ class Speaker(ThreadedSubscriptionConsumer):
             channels=self._channels,
             blocksize=self._blocksize,
         ) as player:
-            self._ready = True
+            self._setReady(True)
             while not self._shouldClose:
                 try:
                     data = self._get()
@@ -110,6 +110,7 @@ class Speaker(ThreadedSubscriptionConsumer):
                     break
                 except:
                     self._log.exception("Error while trying to play audio")
+        self._setReady(False)
         self._log.info("Ended audio playback")
 
     def play(self, data):

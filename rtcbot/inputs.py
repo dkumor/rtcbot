@@ -28,7 +28,7 @@ class InputDevice(ProcessSubscriptionProducer):
         Nevertheless, it does work, on linux. It looks like inputs uses a process on macs,
         which might not exit cleanly...
         """
-        self._ready = True
+        self._setReady(True)
         self._log.debug("Started listening to input device events")
         while not self._shouldClose:
             events = self._device.read()
@@ -41,7 +41,7 @@ class InputDevice(ProcessSubscriptionProducer):
                 }
                 if self._eventFilter(e):
                     self._put_nowait(e)
-        self._ready = False
+        self._setReady(False)
 
 
 class Gamepad(InputDevice):

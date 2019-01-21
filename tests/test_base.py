@@ -102,9 +102,8 @@ class TestThreadedClasses(aiounittest.AsyncTestCase):
     async def test_ThreadedConsumer(self):
         c = ThreadedSubscriptionConsumer()
         c.put_nowait("test")
-
-        while not c.ready:
-            await asyncio.sleep(0.01)
+        await c.onReady()
+        self.assertEqual(c.ready, True)
 
         # Have to sleep to give asyncio time to prepare the data
         await asyncio.sleep(0.1)
@@ -129,14 +128,15 @@ class TestThreadedClasses(aiounittest.AsyncTestCase):
         await asyncio.sleep(10)
 
         c.close()
+        await asyncio.sleep(0.01)
         self.assertEqual(c.ready, False)
         self.assertEqual(c.testQueue.get(), "<<END>>")
 
     async def test_ThreadedProducer(self):
         p = ThreadedSubscriptionProducer()
 
-        while not p.ready:
-            await asyncio.sleep(0.01)
+        await p.onReady()
+        self.assertEqual(p.ready, True)
 
         p.testQueue.put("test1")
         self.assertEqual(await p.get(), "test1")
@@ -149,6 +149,7 @@ class TestThreadedClasses(aiounittest.AsyncTestCase):
         threading.Thread(target=pushsleep).run()
 
         p.close()
+        await asyncio.sleep(0.01)
 
         self.assertEqual(p.ready, False)
 

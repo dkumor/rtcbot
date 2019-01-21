@@ -22,9 +22,11 @@ class _serialProtocol(asyncio.Protocol):
         writeKeys=None,
         readKeys=None,
         startByte=None,
+        onReady=lambda x: 0,
         loop=None,
     ):
         self.putter = putter
+        self.onReady = onReady
 
         # The startByte is actually a byte array
         self.startByte = startByte
@@ -99,6 +101,8 @@ class _serialProtocol(asyncio.Protocol):
         Do not call this function.
         """
         self._log.debug("Serial Connection Made")
+        if self.startByte is None:
+            self.onReady(True)
 
     def connection_lost(self, exc):
         """
@@ -108,6 +112,7 @@ class _serialProtocol(asyncio.Protocol):
         """
         self._log.warn("Serial Connection Lost")
         self.transport = None
+        self.onReady(False)
 
     def data_received(self, data):
         """
@@ -136,6 +141,7 @@ class _serialProtocol(asyncio.Protocol):
                     self.startByte, 1
                 )
                 self.started = True
+                self.onReady(True)
 
         if self.readStruct is not None:
             while len(self.incomingMessageBuffer) >= self.readStruct.size:
@@ -200,7 +206,6 @@ class SerialConnection(SubscriptionProducerConsumer):
             directPutSubscriptionType=asyncio.Queue,
             defaultSubscriptionType=asyncio.Queue,
             logger=self._log,
-            ready=False,
             defaultAutosubscribe=False,
         )
 
@@ -213,6 +218,7 @@ class SerialConnection(SubscriptionProducerConsumer):
             writeKeys=writeKeys,
             readKeys=readKeys,
             startByte=startByte,
+            onReady=self._setReady,
             loop=loop,
         )
 
@@ -224,8 +230,7 @@ class SerialConnection(SubscriptionProducerConsumer):
         asyncio.ensure_future(self._dataWriter())
 
     async def _dataWriter(self):
-        while not self._ready:
-            await asyncio.sleep(0.01)
+        await self.onReady()
         self._log.debug("Connection opened")
         if self._delayStart > 0:
             self._log.debug("Delaying write start by %f seconds", self._delayStart)
@@ -240,12 +245,3 @@ class SerialConnection(SubscriptionProducerConsumer):
                 pass
         self._log("Shutting down serial connection")
         self._protocol.transport.close()
-
-    @property
-    def _ready(self):
-        return self._protocol.isConnected()
-
-    @_ready.setter
-    def _ready(self, value):
-        pass  # nope, ready is determined by connection state.
-

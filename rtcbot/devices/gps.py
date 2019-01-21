@@ -16,6 +16,12 @@ class GPS(BaseSubscriptionProducer):
         self._serial = SerialConnection(url=url, baudrate=baudrate)
         self._serial.subscribe(self._onData)
 
+        @self._serial.onReady
+        def sr():
+            self._setReady(True)
+
+        self._serial.onError(self._setError)
+
         # The GPS also has special methods that return most recent lat/long
         self._latitude = None
         self._longitude = None

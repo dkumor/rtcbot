@@ -27,6 +27,7 @@ class DataChannel(SubscriptionProducerConsumer):
         asyncio.ensure_future(self._messageSender())
 
     async def _messageSender(self):
+        self._setReady(True)
         while not self._shouldClose:
             try:
                 msg = await self._get()
