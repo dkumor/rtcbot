@@ -6,8 +6,17 @@
     current sensor - 0 current has value  505-506. 505 to be safe
 */
 
+#include <stdint.h>
+typedef __attribute__ ((packed)) struct {
+    int16_t gas;
+    int16_t turn;
+    int16_t rot;
+} controlMessage;
+
+controlMessage msg;
+
 #include <Servo.h>
-#include <LowPower.h>
+//#include <LowPower.h>
 
 #include "serialctrl.h"
 
@@ -83,6 +92,8 @@ void setup() {
     }
 
     buzzMotor(2,70,70);
+
+    digitalWrite(SLP,1);
 }
 
 void servoInit() {
@@ -125,7 +136,7 @@ void buzzMotor(int number,int timeOn,int timeOff) {
 
     digitalWrite(SLP,slp_state);
 }
-
+/*
 // This is used on low battery to basically kill the chip so that it uses as little current as possible.
 // We periodically wake it to complain about battery by buzzing the motor
 void lowBatteryMode() {
@@ -284,6 +295,7 @@ void runControls() {
     
 }
 
+bool started = false;
 // Run in a loop
 void loop() {
     /*
@@ -317,10 +329,46 @@ void loop() {
     delay(3000);
     */
    //runget(Serial);
-   if (Serial.available() > 0) {
-        Serial.print("I received: ");
-        Serial.println(Serial.read());
-    }
+   Serial.readBytes((char*)&msg,sizeof(msg));
+   if (started) {
+       //Serial.print(msg.gas);
+        //Serial.print(",");
+        //Serial.println(msg.turn);
+        //Serial.print(",");
+        //Serial.println(msg.rot);
+
+        long steer = msg.turn/13 + 92;
+        steer = (steer>167?167:steer);
+            steer = (steer<17?17:steer);
+        steering.write(steer);
+
+        long rot = msg.rot/8 + 90;
+        rot = (rot>180?180:rot);
+        rot = (rot<0?0:rot);
+        armRotation.write(rot);
+
+        long pwm = msg.gas/25;
+        digitalWrite(DIR,pwm>0);
+        if (pwm < 0) {
+            pwm = -pwm;
+        }
+        pwm = (pwm > 40? 40:pwm);
+        pwm = (pwm <0? 0:pwm);
+        analogWrite(PWM,pwm);
+
+   } else {
+       if (msg.turn==0 && msg.gas==0) {
+           started = true;
+           Serial.print("STARTED");
+       } else {
+           Serial.print("Got garbage: ");
+           Serial.print(msg.gas);
+            Serial.print(",");
+            Serial.print(msg.turn);
+            Serial.print(",");
+            Serial.println(msg.rot);
+       }
+   }
 
 
    /*

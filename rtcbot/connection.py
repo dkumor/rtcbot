@@ -1,6 +1,7 @@
 from aiortc import RTCPeerConnection, RTCSessionDescription
 import asyncio
 import logging
+import json
 
 from .base import SubscriptionProducerConsumer, SubscriptionProducer, SubscriptionClosed
 from .tracks import VideoSender, AudioSender, AudioReceiver, VideoReceiver
@@ -16,12 +17,13 @@ class DataChannel(SubscriptionProducerConsumer):
 
     _log = logging.getLogger("rtcbot.RTCConnection.DataChannel")
 
-    def __init__(self, rtcDataChannel):
+    def __init__(self, rtcDataChannel, json=True):
         super().__init__(asyncio.Queue, asyncio.Queue, logger=self._log)
         self._rtcDataChannel = rtcDataChannel
 
         # Directly put messages
-        self._rtcDataChannel.on("message", self._put_nowait)
+        self._rtcDataChannel.on("message", self._put_preprocess)
+        self._json = json
 
         # Make sure we pass messages forward
         asyncio.ensure_future(self._messageSender())
@@ -31,12 +33,22 @@ class DataChannel(SubscriptionProducerConsumer):
         while not self._shouldClose:
             try:
                 msg = await self._get()
+                if self._json:
+                    msg = json.dumps(msg)
                 self._log.debug("Sending message %s", msg)
                 self._rtcDataChannel.send(msg)
             except SubscriptionClosed:
                 pass
                 # The while loop should exit here
         self._log.debug("Stopping message sender")
+
+    def _put_preprocess(self, data):
+        if self._json:
+            try:
+                data = json.loads(data)
+            except:
+                self._log("Failed to read json data %s", data)
+        self._put_nowait(data)
 
     @property
     def name(self):

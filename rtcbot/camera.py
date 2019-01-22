@@ -9,7 +9,6 @@ from .base import (
     SubscriptionClosed,
 )
 from .subscriptions import MostRecentSubscription
-import cv2
 
 
 class CVCamera(ThreadedSubscriptionProducer):
@@ -46,6 +45,8 @@ class CVCamera(ThreadedSubscriptionProducer):
         """
         Runs the actual frame capturing code.
         """
+        import cv2
+
         self._log.info("Started camera thread")
         cap = cv2.VideoCapture(self._cameranumber)
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, self._width)
@@ -180,6 +181,8 @@ class CVDisplay(ThreadedSubscriptionConsumer):
         super().__init__(MostRecentSubscription, self._log, loop=loop)
 
     def _consumer(self):
+        import cv2
+
         self._setReady(True)
         try:
             while not self._shouldClose:

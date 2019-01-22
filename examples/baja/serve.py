@@ -1,5 +1,12 @@
 from aiohttp import web
-from rtcbot import RTCConnection, CVCamera, PiCamera, Microphone
+from rtcbot import (
+    RTCConnection,
+    CVCamera,
+    PiCamera,
+    Microphone,
+    Speaker,
+    SerialConnection,
+)
 import asyncio
 import logging
 
@@ -14,13 +21,30 @@ try:
 except:
     cam = CVCamera()
 mic = Microphone()
+# s = Speaker()
 
 conn = RTCConnection()
 conn.video.putSubscription(cam)
 conn.audio.putSubscription(mic)
+# conn.audio.subscribe(s)
 
+arduino = SerialConnection(writeFormat="<hhh", writeKeys=["gas", "turn", "rot"])
 
+arduino.putSubscription(conn)
+
+"""
 @conn.subscribe
+def oncMsg(msg):
+    try:
+        print(msg)
+        print(msg["gas"])
+    except Exception as e:
+        print(e)
+    arduino.put_nowait(msg)
+"""
+
+
+@arduino.subscribe
 def onMessage(msg):
     print(msg)
 

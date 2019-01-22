@@ -8,7 +8,6 @@ from aiortc.mediastreams import (
     VIDEO_TIME_BASE,
 )
 from av import VideoFrame, AudioFrame
-import cv2
 
 import logging
 import fractions
@@ -321,7 +320,7 @@ class VideoReceiver(BaseSubscriptionProducer):
 
             # Decode the frame
             data = videoFrame.to_rgb().to_ndarray()
-            data = cv2.cvtColor(data, cv2.COLOR_RGB2BGR)
+            data = data[..., ::-1]  # cv2.cvtColor(data, cv2.COLOR_RGB2BGR)
             self._log.debug("Received %s frame", data.shape)
             self._put_nowait(data)
 
