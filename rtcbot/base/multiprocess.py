@@ -134,7 +134,7 @@ class ProcessSubscriptionProducer(BaseSubscriptionProducer):
         to call this in an async function, since it waits until the background thread joins.
 
         The object is meant to be used as a singleton, which is initialized at the start of your code,
-        and is closed at the end.
+        and is closed when shutting down.
         """
         super().close()
         self._producerProcess.join(self._joinTimeout)

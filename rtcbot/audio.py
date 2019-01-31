@@ -112,35 +112,3 @@ class Speaker(ThreadedSubscriptionConsumer):
                     self._log.exception("Error while trying to play audio")
         self._setReady(False)
         self._log.info("Ended audio playback")
-
-    def play(self, data):
-        """
-        This is a direct API for playing an array of data. Queues up the array of data
-        to play, and returns without blocking.
-
-        Calls `soundcard._Player.play` in the backend. Cannot be used at the
-        same time as playStream.
-
-
-        """
-        self.put_nowait(data)
-
-    def playStream(self, stream):
-        """
-        Given a subscription to the audio stream, such that `await stream.get()` returns the
-        raw audio data, plays the stream.
-        """
-        self.putSubscription(stream)
-
-    def stop(self):
-        """
-        Stops playing currently playing audio. Forgets the currently playing stream, 
-        and waits for new audio, which is passed through `play` or `playStream`
-        """
-        super().stop()
-
-    def close(self):
-        """
-        Shuts down the speaker. 
-        """
-        super().close()

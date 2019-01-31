@@ -10,4 +10,5 @@ API
 .. automodule:: rtcbot.inputs
     :members:
     :undoc-members:
+    :inherited-members:
     :show-inheritance:

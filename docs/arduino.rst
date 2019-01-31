@@ -23,9 +23,9 @@ Assuming that you have connected the Pi to an Arduino with a USB cable, you can 
     conn = SerialConnection("/dev/ttyAMA1")
 
     async def sendAndReceive(conn):
-        conn.write("Hello world!")
+        conn.put_nowait("Hello world!")
         while True:
-            msg = await conn.readQueue.get().decode('ascii')
+            msg = await conn.get().decode('ascii')
             print(msg)
             await asyncio.sleep(1)
 
@@ -96,7 +96,7 @@ This corresponds to the format character "h" (see structure packing `table of fo
     
 With this format, you can send messages to the Arduino as dicts::
     
-    conn.write({"value1": -23,"value2": 101})
+    conn.put_nowait({"value1": -23,"value2": 101})
 
 To decode them on the Arduino, you can read:
 
@@ -192,8 +192,8 @@ The above code echoes the values sent to it, with value1 and value2 switched. Th
 
     async def sendAndReceive(sc):
         while True:
-            sc.write({"value1": 1003,"value2": 2})
-            msg = await sc.readQueue.get()
+            sc.put_nowait({"value1": 1003,"value2": 2})
+            msg = await sc.get()
             print("Received:",msg)
             await asyncio.sleep(1)
 

@@ -11,6 +11,7 @@ independent - most only require the first example as a prerequisite.
 
 .. toctree::
     :maxdepth: 1
-    
+
+    basics/README.md
     1basic/README.md
     2camera/README.md

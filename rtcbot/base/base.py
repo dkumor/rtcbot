@@ -105,14 +105,14 @@ class BaseSubscriptionProducer(baseEventHandler):
 
     def subscribe(self, subscription=None):
         """
-        Subscribes to new data as it comes in, returning a subscription (see :doc:`subscriptions`)::
+        Allows subscribing to new data as it comes in, returning a subscription (see :doc:`subscriptions`)::
 
             s = myobj.subscribe()
             while True:
                 data = await s.get()
                 print(data)
 
-        There can be multiple independent subscriptions active at the same time. 
+        There can be multiple subscriptions active at the same time, each of which get identical data.
         Each call to :func:`subscribe` returns a new, independent subscription::
 
             s1 = myobj.subscribe()
@@ -120,6 +120,13 @@ class BaseSubscriptionProducer(baseEventHandler):
             while True:
                 assert await s1.get()== await s2.get()
 
+        This function can also be used as a callback::
+
+            @myobj.subscribe
+            def newData(data):
+                print("Got data:",data)
+
+        If passed an argument, it attempts to use the given callback/coroutine/subscription to notify of incoming data.
 
         Args:
             subscription (optional):
@@ -346,7 +353,23 @@ class BaseSubscriptionConsumer(baseEventHandler):
 
     def put_nowait(self, data):
         """
-        Direct API for sending data to the reader, without needing to pass a subscription.
+        This function allows you to directly send data to the object, without needing to
+        go through a subscription::
+
+            while True:
+                data = get_data()
+                myobj.put_nowait(data)
+
+        The :func:`put_nowait` method is the simplest way to process a new chunk of data.
+
+        note:
+            If there is currently an active subscription initialized through :func:`putSubscription`,
+            it is immediately stopped, and the object waits only for :func:`put_nowait`::
+
+                myobj.putSubscription(s)
+                myobj.put_nowait(mydata) # unsubscribes from s
+
+                assert myobj.subscription is None
         """
         if self._subscription != self.__directPutSubscription:
             # If the subscription is not the default, stop, which will create a new default,
@@ -360,11 +383,31 @@ class BaseSubscriptionConsumer(baseEventHandler):
     def putSubscription(self, subscription):
         """
         Given a subscription, such that `await subscription.get()` returns successive pieces of data,
-        keeps reading the subscription until it is replaced.
+        keeps reading the subscription forever::
+
+            q = asyncio.Queue() # an asyncio.Queue has a get() coroutine
+            myobj.putSubscription(q)
+
+            q.put_nowait(data)
+
         Equivalent to doing the following in the background::
 
             while True:
-                sr.put_nowait(await subscription.get())
+                myobj.put_nowait(await q.get())
+
+
+        You can replace a currently running subscription with a new one at any point in time::
+
+            q1 = asyncio.Queue()
+            myobj.putSubscription(q1)
+
+            assert myobj.subscription == q1
+
+            q2 = asyncio.Queue()
+            myobj.putSubscription(q2)
+
+            assert myobj.subscription == q2
+
         """
         if subscription == self._subscription:
             return
@@ -376,10 +419,26 @@ class BaseSubscriptionConsumer(baseEventHandler):
             self.__sclog.debug("Canceling currently running subscription")
             self._getTask.cancel()
 
-    def stop(self):
+    def stopSubscription(self):
         """
-        Stops reading the current subscription. Forgets any subscription,
-        and waits for new data, which is passed through `put_nowait` or `readSubscription`
+        Stops reading the current subscription::
+
+            q = asyncio.Queue()
+            myobj.putSubscription(q)
+
+            assert myobj.subscription == q
+
+            myobj.stopSubscription()
+
+            assert myobj.subscription is None
+
+            # You can then subscribe again (or put_nowait)
+            myobj.putSubscription(q)
+            assert myobj.subscription == q
+
+        The object is not affected, other than no longer listening to the subscription, 
+        and not processing new data until something is inserted.
+
         """
         self.__directPutSubscription = self.__directPutSubscriptionType()
         self.putSubscription(
@@ -398,8 +457,18 @@ class BaseSubscriptionConsumer(baseEventHandler):
     @property
     def subscription(self):
         """
-        Returns the currently active subscription. 
-        If no subscription is active, you can still use func:`put_nowait` to add new data.
+        Returns the currently active subscription::
+
+            q = asyncio.Queue()
+            myobj.putSubscription(q)
+            assert myobj.subscription == q
+
+            myobj.stopSubscription()
+            assert myobj.subscription is None
+
+            myobj.put_nowait(data)
+            assert myobj.subscription is None
+
         """
         if self._subscription == self.__directPutSubscription:
             return None
