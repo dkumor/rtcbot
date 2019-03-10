@@ -1,5 +1,9 @@
 # RTCBot
 
+[![PyPI](https://img.shields.io/pypi/v/rtcbot.svg?style=flat-square)](https://pypi.org/project/rtcbot/)
+[![Documentation Status](https://readthedocs.org/projects/rtcbot/badge/?version=latest&style=flat-square)](https://rtcbot.readthedocs.io/en/latest/?badge=latest)
+[![Join the chat at https://gitter.im/rtcbot/community](https://img.shields.io/gitter/room/dkumor/rtcbot.svg?style=flat-square)](https://gitter.im/rtcbot/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 RTCBot's purpose is to provide a set of tutorials and simple modules that help in developing remote-controlled robots in Python, with a focus on the Raspberry Pi.
 
 The tutorials start from a basic connection between a Raspberry Pi and Browser, and encompass
