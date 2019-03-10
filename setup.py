@@ -36,5 +36,6 @@ setuptools.setup(
         "aiohttp",
         "soundcard",
         "inputs",
+        "pynmea2",
     ],
 )

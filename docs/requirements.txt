@@ -6,3 +6,4 @@ numpy
 aiohttp
 pyserial
 pyserial-asyncio
+pynmea2

@@ -5,3 +5,4 @@ numpy
 aiohttp
 soundcard
 inputs
+pynmea2
