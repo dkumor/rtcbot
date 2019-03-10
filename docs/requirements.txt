@@ -1,2 +1,3 @@
 sphinx-js
 sphinxcontrib-asyncio
+sphinx-autodoc-typehints
