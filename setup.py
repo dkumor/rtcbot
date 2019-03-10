@@ -28,5 +28,13 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     include_package_data=True,
     python_requires=">=3.7.0",
-    install_requires=["aiortc" "pyserial", "pyserial-asyncio", "numpy", "aiohttp"],
+    install_requires=[
+        "aiortc",
+        "pyserial",
+        "pyserial-asyncio",
+        "numpy",
+        "aiohttp",
+        "soundcard",
+        "inputs",
+    ],
 )

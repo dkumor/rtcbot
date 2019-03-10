@@ -1,5 +1,7 @@
-aiortc
+#aiortc
 pyserial
 pyserial-asyncio
 numpy
 aiohttp
+soundcard
+inputs
