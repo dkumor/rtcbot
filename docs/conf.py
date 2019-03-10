@@ -29,6 +29,8 @@ version = "0.1"
 # The full version, including alpha/beta/rc tags
 release = "0.1.0"
 
+# Mock the modules that would require compiling
+autodoc_mock_imports = ["av", "cv2", "aiortc"]
 
 # -- General configuration ---------------------------------------------------
 
