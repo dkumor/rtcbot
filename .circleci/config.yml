@@ -30,6 +30,8 @@ jobs:
       - run:
           name: install dependencies
           command: |
+            apt-get update -yqq
+            apt-get install -yqq ffmpeg libmp3lame-dev libopus-dev libvpx-dev libx264-dev yasm
             python3 -m venv venv
             . venv/bin/activate
             pip install -r requirements.txt

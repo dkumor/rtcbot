@@ -1,4 +1,4 @@
-#aiortc
+aiortc
 pyserial
 pyserial-asyncio
 numpy
@@ -7,3 +7,4 @@ soundcard
 inputs
 pynmea2
 nose
+aiounittest
