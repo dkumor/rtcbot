@@ -374,7 +374,7 @@ class BaseSubscriptionConsumer(baseEventHandler):
         if self._subscription != self.__directPutSubscription:
             # If the subscription is not the default, stop, which will create a new default,
             # to which we can add our data
-            self.stop()
+            self.stopSubscription()
         self.__sclog.debug(
             "put data with subscription %s", self.__directPutSubscription
         )

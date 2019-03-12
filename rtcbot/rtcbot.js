@@ -14,12 +14,10 @@ class RTCConnection {
    *
    * For detailed documentation, see the RTCConnection docs for Python.
    *
-   * @param {*} onMessage
    * @param {*} defaultOrdered
    * @param {*} options
    */
   constructor(
-    onMessage = null,
     defaultOrdered = true,
     options = {
       iceServers: [{ urls: ["stun:stun.l.google.com:19302"] }]
@@ -27,11 +25,7 @@ class RTCConnection {
   ) {
     this._dataChannels = {};
 
-    if (onMessage != null) {
-      this._msgcallback = onMessage;
-    } else {
-      this._msgcallback = (channel, msg) => console.log(channel.label, msg);
-    }
+    this._msgcallback = msg => console.log(msg);
 
     this._videocallback = null;
     this._audiocallback = null;
@@ -115,10 +109,10 @@ class RTCConnection {
   }
 
   _sendQueuedMessages() {
-    //console.log("sending queued messages", this._defaultChannel);
+    //console.log("sending queued messages", this.__queuedMessages);
     if (this.__queuedMessages.length > 0) {
       for (let i = 0; i < this.__queuedMessages.length; i++) {
-        //console.log("Sending", this._defaultChannel, this.__queuedMessages[i]);
+        //console.log("Sending", this.__queuedMessages[i]);
         this._defaultChannel.send(this.__queuedMessages[i]);
       }
       this.__queuedMessages = [];
@@ -126,10 +120,11 @@ class RTCConnection {
   }
 
   _onDataChannel(channel) {
-    //console.log(channel);
+    console.log(channel);
     channel = channel.channel;
     channel.onmessage = this._onMessage.bind(this, channel);
     if (channel.label == "default") {
+      //console.log("Got default channel");
       this._defaultChannel = channel;
       channel.onopen = () => this._sendQueuedMessages();
     } else {
@@ -151,9 +146,9 @@ class RTCConnection {
   }
   _onMessage(channel, message) {
     //console.log("got message", message);
-    this._msgcallback(channel, message.data);
+    this._msgcallback(message.data);
   }
-  onMessage(callback) {
+  subscribe(callback) {
     this._msgcallback = callback;
   }
   onVideo(callback) {
@@ -162,13 +157,19 @@ class RTCConnection {
   onAudio(callback) {
     this._audiocallback = callback;
   }
-  send(msg) {
+  put_nowait(msg) {
+    if (typeof msg !== "string") {
+      msg = JSON.stringify(msg);
+    }
     if (
       this._defaultChannel != null &&
-      this._defaultChannel.readyState == "open"
+      this._defaultChannel.readyState == "open" &&
+      this.__queuedMessages.length == 0
     ) {
+      //console.log("Sending directly");
       this._defaultChannel.send(msg);
     } else {
+      //console.log("queueing");
       this.__queuedMessages.push(msg);
     }
   }
@@ -192,7 +193,7 @@ class Queue {
     this._waiting = [];
     this._enqueued = [];
   }
-  put(elem) {
+  put_nowait(elem) {
     this._enqueued.push(elem);
     if (this._waiting.length > 0) {
       this._waiting.shift()(this._enqueued.shift());

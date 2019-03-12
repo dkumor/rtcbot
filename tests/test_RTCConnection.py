@@ -52,3 +52,5 @@ class TestRTCConnection(aiounittest.AsyncTestCase):
         dcs2 = c2.onDataChannel()
 
         # CONTINUE...
+        await c1.close()
+        await c2.close()

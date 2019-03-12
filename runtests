@@ -3,3 +3,4 @@
 # Run python tests, and create coverage report in cover folder
 nosetests --with-coverage --cover-package=rtcbot --cover-html
 # Jun js tests too
+npm run test

@@ -13,13 +13,12 @@ def getRTCBotJS(minified=True):
 
         @routes.get("/rtcbot.js")
         async def rtcbotJS(request):
-            return web.Response(content_type="text/javascript", text=getRTCBotJS())
+            return web.Response(content_type="application/javascript", text=getRTCBotJS())
 
         app = web.Application()
         app.add_routes(routes)
         web.run_app(app, port=8000)
 
-    
     """
     if minified:
         try:

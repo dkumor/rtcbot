@@ -25,10 +25,18 @@ class DataChannel(SubscriptionProducerConsumer):
         self._rtcDataChannel.on("message", self._put_preprocess)
         self._json = json
 
-        # Make sure we pass messages forward
-        asyncio.ensure_future(self._messageSender())
+        self._log.debug("READY STATE %s", self._rtcDataChannel.readyState)
+        if self._rtcDataChannel.readyState == "open":
+            # Make sure we pass messages forward
+            asyncio.ensure_future(self._messageSender())
+        else:
+            self._log.debug("Waiting for channel to open")
+            self._rtcDataChannel.on(
+                "open", lambda: asyncio.ensure_future(self._messageSender())
+            )
 
     async def _messageSender(self):
+        self._log.debug("Channel open, ready to send")
         self._setReady(True)
         while not self._shouldClose:
             try:
@@ -43,12 +51,16 @@ class DataChannel(SubscriptionProducerConsumer):
         self._log.debug("Stopping message sender")
 
     def _put_preprocess(self, data):
+        self._log.debug("Received '%s'", data)
         if self._json:
             try:
                 data = json.loads(data)
             except:
-                self._log("Failed to read json data %s", data)
-        self._put_nowait(data)
+                self._log.debug("Failed to read json data %s", data)
+        try:
+            self._put_nowait(data)
+        except:
+            self._log.exception("Error in message handler")
 
     @property
     def name(self):

@@ -18,18 +18,18 @@ describe("RTCConnection", function() {
 
     q1 = new Queue_();
     q2 = new Queue_();
-    c1.onMessage((c, m) => q1.put(m));
-    c2.onMessage((c, m) => q2.put(m));
+    c1.subscribe(m => q1.put_nowait(m));
+    c2.subscribe(m => q2.put_nowait(m));
 
     offer = await c1.getLocalDescription();
     response = await c2.getLocalDescription(offer);
     await c1.setRemoteDescription(response);
 
-    c1.send(testmsg1);
-    c2.send(testmsg2);
+    c1.put_nowait(testmsg1);
+    c2.put_nowait(testmsg2);
 
-    c1.send("OMG");
-    c2.send("OMG2");
+    c1.put_nowait("OMG");
+    c2.put_nowait("OMG2");
 
     msg1 = await q1.get();
     msg2 = await q2.get();

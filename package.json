@@ -2,7 +2,7 @@
   "name": "rtcbot",
   "version": "0.0.1",
   "description": "Library for building robots controlled over WebRTC.",
-  "main": "rtcbot/rtcbot.js",
+  "main": "rtcbot/rtcbot.mjs",
   "directories": {
     "doc": "docs",
     "example": "examples",

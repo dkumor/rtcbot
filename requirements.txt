@@ -6,3 +6,4 @@ aiohttp
 soundcard
 inputs
 pynmea2
+nose
