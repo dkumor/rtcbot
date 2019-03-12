@@ -31,7 +31,32 @@ jobs:
           name: install dependencies
           command: |
             sudo apt-get update -yqq
-            sudo apt-get install -yqq ffmpeg libmp3lame-dev libopus-dev libvpx-dev libx264-dev yasm
+            sudo apt-get install -yqq libmp3lame-dev libopus-dev libvpx-dev libx264-dev yasm
+            sudo apt install \
+              autoconf \
+              automake \
+              build-essential \
+              cmake \
+              libass-dev \
+              libfreetype6-dev \
+              libjpeg-dev \
+              libtheora-dev \
+              libtool \
+              libvorbis-dev \
+              libx264-dev \
+              pkg-config \
+              wget \
+              yasm \
+              zlib1g-dev
+
+            wget http://ffmpeg.org/releases/ffmpeg-3.2.tar.bz2
+            tar -xjf ffmpeg-3.2.tar.bz2
+            cd ffmpeg-3.2
+
+            ./configure --disable-static --enable-shared --disable-doc
+            make
+            sudo make install
+            cd ..
             python3 -m venv venv
             . venv/bin/activate
             pip install -r requirements.txt
