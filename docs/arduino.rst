@@ -131,7 +131,7 @@ You can then get the message directly as a Python dict::
     )
 
     # Run this in a coroutine
-    print(await conn.readQueue.get() )
+    print(await conn.get() )
     # {"sensorID": 12, "measurement": 123}
 
 

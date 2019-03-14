@@ -331,7 +331,9 @@ class BaseSubscriptionConsumer(baseEventHandler):
         
         """
         while not self._shouldClose:
-            self._getTask = asyncio.create_task(self._subscription.get())
+            # create_task not supported on older python versions
+            # self._getTask = asyncio.create_task(self._subscription.get())
+            self._getTask = asyncio.ensure_future(self._subscription.get())
 
             try:
                 self.__sclog.debug("Waiting for new data...")

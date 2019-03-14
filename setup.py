@@ -10,7 +10,7 @@ README = (HERE / "README.md").read_text()
 # This call to setup() does all the work
 setuptools.setup(
     name="rtcbot",
-    version="0.0.1",
+    version="0.0.2",
     description="An asyncio-focused library for webrtc robot control",
     long_description=README,
     long_description_content_type="text/markdown",
@@ -23,11 +23,11 @@ setuptools.setup(
         "Intended Audience :: Science/Research",
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.5",
     ],
     packages=setuptools.find_packages(),
     include_package_data=True,
-    python_requires=">=3.7.0",
+    python_requires=">=3.5.0",
     install_requires=[
         "aiortc",
         "pyserial",

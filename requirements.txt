@@ -8,3 +8,4 @@ inputs
 pynmea2
 nose
 aiounittest
+coverage

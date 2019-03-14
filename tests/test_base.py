@@ -26,7 +26,8 @@ class TestBaseClasses(aiounittest.AsyncTestCase):
 
         # Now test cancellation - the current subscription is q.
         # we will switch to the default one
-        getTask = asyncio.create_task(c.get())
+        # getTask = asyncio.create_task(c.get())
+        getTask = asyncio.ensure_future(c.get())
 
         # Give time for the task to start
         await asyncio.sleep(0.01)
@@ -75,7 +76,8 @@ class TestBaseClasses(aiounittest.AsyncTestCase):
         p.put_nowait("4")
 
         # The default is recreated here
-        getTask = asyncio.create_task(p.get())
+        # getTask = asyncio.create_task(p.get())
+        getTask = asyncio.ensure_future(p.get())
 
         # Give time for the task to start
         await asyncio.sleep(0.01)

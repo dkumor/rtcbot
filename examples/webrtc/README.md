@@ -363,3 +363,5 @@ With that, a connection between `conn` and `conn2` is established. Both in javas
 ## Extra Notes
 
 The javascript version of `RTCConnection` tries to be as similar as possible to the Python version. However, it is not as powerful as the Python version, allowing only callback subscriptions to receive messages, and only allowing `put_nowait` to send them, rather than allowing one to `putSubscription`, as can be done in the Python version.
+
+Also, we only created the `RTCConnection` globally for simplicity in the tutorial. In real apps, you will want to create connections inside the `/connect` handler to be able to handle multiple clients, or even a single client connecting multiple times.

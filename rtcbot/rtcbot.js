@@ -7,6 +7,43 @@ const _RTCPeerConnection =
     ? RTCPeerConnection
     : require("wrtc").RTCPeerConnection;
 
+class ConnectionStreamHandler {
+  constructor(rtc) {
+    this._callback = null;
+
+    // The incoming and outgoing data streams
+    this.incomingStream = null;
+    this.outgoingStream = null;
+
+    this._rtc = rtc;
+    this._offerToReceive = false;
+  }
+
+  subscribe(f) {
+    this._callback = f;
+
+    // Since we subscribe to a video stream, we offer to receive one.
+    this.offerToReceive();
+  }
+
+  putSubscription(track) {
+    this.outgoingStream = track;
+    this._rtc.addTrack(track);
+  }
+
+  offerToReceive() {
+    this._offerToReceive = true;
+  }
+
+  _onTrack(track) {
+    // This is the internal track receiver. Right now only supports a single incoming stream.
+    this.incomingStream = track.streams[0];
+    if (this._callback != null) {
+      this._callback(track.streams[0]);
+    }
+  }
+}
+
 class RTCConnection {
   /**
    * RTCConnection mirrors the Python RTCConnection in API. Whatever differences in functionality
@@ -27,12 +64,12 @@ class RTCConnection {
 
     this._msgcallback = msg => console.log(msg);
 
-    this._videocallback = null;
-    this._audiocallback = null;
-
     this._rtc = new _RTCPeerConnection(options);
     this._rtc.ondatachannel = this._onDataChannel.bind(this);
     this._rtc.ontrack = this._onTrack.bind(this);
+
+    this.video = new ConnectionStreamHandler(this._rtc);
+    this.audio = new ConnectionStreamHandler(this._rtc);
 
     this._hasRemoteDescription = false;
     this._defaultChannel = null;
@@ -94,8 +131,8 @@ class RTCConnection {
     this._defaultChannel.onopen = this._sendQueuedMessages.bind(this);
 
     let offer = await this._rtc.createOffer({
-      offerToReceiveVideo: this._videocallback != null,
-      offerToReceiveAudio: this._audiocallback != null
+      offerToReceiveVideo: this.video._offerToReceive,
+      offerToReceiveAudio: this.audio._offerToReceive
     });
     await this._rtc.setLocalDescription(offer);
     // For simplicity of the API, we wait until all ICE candidates are
@@ -135,10 +172,10 @@ class RTCConnection {
     console.log("got track", track);
     switch (track.track.kind) {
       case "video":
-        this._videocallback(track.streams[0]);
+        this.video._onTrack(track);
         break;
       case "audio":
-        this._audiocallback(track.streams[0]);
+        this.audio._onTrack(track);
         break;
       default:
         console.error("Could not recognize track!");
@@ -150,12 +187,6 @@ class RTCConnection {
   }
   subscribe(callback) {
     this._msgcallback = callback;
-  }
-  onVideo(callback) {
-    this._videocallback = callback;
-  }
-  onAudio(callback) {
-    this._audiocallback = callback;
   }
   put_nowait(msg) {
     if (typeof msg !== "string") {

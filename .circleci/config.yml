@@ -64,6 +64,7 @@ jobs:
       - save_cache:
           paths:
             - ./venv
+            - ./ffmpeg-3.2
           key: v1-dependencies-{{ checksum "requirements.txt" }}
 
       # run tests!
