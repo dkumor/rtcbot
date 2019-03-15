@@ -55,7 +55,7 @@ class CVCamera(ThreadedSubscriptionProducer):
 
         ret, frame = cap.read()
         if not ret:
-            self._log.error(f"Camera Read Failed {ret}")
+            self._log.error("Camera Read Failed %s", str(ret))
             cap.release()
             self._setError(ret)
             return
@@ -68,7 +68,7 @@ class CVCamera(ThreadedSubscriptionProducer):
         while not self._shouldClose:
             ret, frame = cap.read()
             if not ret:
-                self._log.error(f"CV read error {ret}")
+                self._log.error("CV read error %s", str(ret))
             else:
                 # This optional function is given by the user. default is identity x->x
                 frame = self._processframe(frame)
@@ -78,7 +78,7 @@ class CVCamera(ThreadedSubscriptionProducer):
 
                 i += 1
                 if time.time() > t + 1:
-                    self._log.debug(f" {i} fps")
+                    self._log.debug(" %d fps", i)
                     i = 0
                     t = time.time()
         cap.release()
@@ -158,7 +158,7 @@ class PiCamera(CVCamera):
 
                 i += 1
                 if time.time() > t + 1:
-                    self._log.debug(f" {i} fps")
+                    self._log.debug(" %d fps", i)
                     i = 0
                     t = time.time()
         self._setReady(False)

@@ -17,7 +17,7 @@ class SubscriptionClosed(Exception):
 class NoClosedSubscription:
     """
     NoClosedSubscription wraps a callback, and doesn't pass forward SubscriptionClosed errors - it converts them to
-    `asyncio.CancelledError`s. This allows exiting the application in a clean way.
+    :class:`asyncio.CancelledError`. This allows exiting the application in a clean way.
     """
 
     def __init__(self, awaitable):

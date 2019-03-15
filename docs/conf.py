@@ -58,6 +58,7 @@ intersphinx_mapping = {
     "soundcard": ("https://soundcard.readthedocs.io/en/latest/", None),
     "aiortc": ("https://aiortc.readthedocs.io/en/latest/", None),
     "inputs": ("https://inputs.readthedocs.io/en/latest/", None),
+    "picamera": ("https://picamera.readthedocs.io/en/latest/", None),
 }
 
 # Add any paths that contain templates here, relative to this directory.

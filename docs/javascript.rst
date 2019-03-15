@@ -12,22 +12,22 @@ the Javascript API mirrors the Python API, and can be used in exactly the same w
 Basic Usage
 ++++++++++++++++
 
-To start using the Javascript API, all you need to do is include the `RTCBot.js` file in your site, and include the following javascript:
+To start using the Javascript API, all you need to do is include the `RTCBot.js` file in a script tag, and use the following javascript:
     
 .. code-block:: javascript
 
     // The connection object
-    var conn = new RTCConnection();
+    var conn = new rtcbot.RTCConnection();
 
     // Here we set up the connection. We put it in an async function, since we will be
     // waiting for results from the server (Promises).
-    async function setupRTC() {
+    async function connect() {
         // Get the information needed to connect from the server to the browser
         let offer = await conn.getLocalDescription();
 
         // POST the information to the server, which will respond with the corresponding remote
         // connection's description
-        let response = await fetch("/setupRTC", {
+        let response = await fetch("/connect", {
             method: "POST",
             cache: "no-cache",
             body: JSON.stringify(offer)
@@ -37,25 +37,31 @@ To start using the Javascript API, all you need to do is include the `RTCBot.js`
         await conn.setRemoteDescription(await response.json());
     }
 
-    setupRTC(); // Run the async function in the background.
+    connect(); // Run the async function in the background.
 
 
 Next, to establish the connection with Python, you include the Python counterpart::
 
     from aiohttp import web
-    from rtcbot import RTCConnection
-
     routes = web.RouteTableDef()
 
+    from rtcbot import RTCConnection, getRTCBotJS
+    conn= None
 
-    @routes.get("/")
+    @routes.get("/") # Serve the html file
     async def index(request):
-        with open("camera.html", "r") as f:
+        with open("index.html", "r") as f:
             return web.Response(content_type="text/html", text=f.read())
 
+    # Serve the RTCBot javascript library at /rtcbot.js
+    @routes.get("/rtcbot.js")
+    async def rtcbotjs(request):
+        return web.Response(content_type="application/javascript", text=getRTCBotJS())
 
-    @routes.post("/setupRTC")
-    async def setupRTC(request):
+
+    @routes.post("/connect")
+    async def connect(request):
+        global conn
         clientOffer = await request.json()
         conn = RTCConnection()
 
@@ -63,10 +69,14 @@ Next, to establish the connection with Python, you include the Python counterpar
         return web.json_response(response)
 
 
-    routes.static("/rtcbot/", path="./rtcbot")
+    async def cleanup(app):
+        if conn is not None:
+            await conn.close()
+
     app = web.Application()
     app.add_routes(routes)
-    web.run_app(app, port=8000)
+    app.on_shutdown.append(cleanup)
+    web.run_app(app, port=8080)
 
 
 Python API
