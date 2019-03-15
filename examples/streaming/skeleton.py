@@ -27,7 +27,7 @@ async def connect(request):
 async def index(request):
     return web.Response(
         content_type="text/html",
-        text="""
+        text=r"""
     <html>
         <head>
             <title>RTCBot: Skeleton</title>
@@ -39,7 +39,7 @@ async def index(request):
             Open the browser's developer tools to see console messages (CTRL+SHIFT+C)
             </p>
             <script>
-                var conn = new RTCConnection();
+                var conn = new rtcbot.RTCConnection();
 
                 async function connect() {
                     let offer = await conn.getLocalDescription();
@@ -64,6 +64,11 @@ async def index(request):
     )
 
 
+async def cleanup(app):
+    await conn.close()
+
+
 app = web.Application()
 app.add_routes(routes)
+app.on_shutdown.append(cleanup)
 web.run_app(app)

@@ -3,9 +3,14 @@ import asyncio
 import logging
 import json
 
-from .base import SubscriptionProducerConsumer, SubscriptionProducer, SubscriptionClosed
+from .base import (
+    SubscriptionProducerConsumer,
+    SubscriptionProducer,
+    SubscriptionClosed,
+    NoClosedSubscription,
+)
 from .tracks import VideoSender, AudioSender, AudioReceiver, VideoReceiver
-from .subscriptions import GetterSubscription, MostRecentSubscription
+from .subscriptions import MostRecentSubscription
 
 
 class DataChannel(SubscriptionProducerConsumer):
@@ -67,7 +72,7 @@ class DataChannel(SubscriptionProducerConsumer):
         return self._rtcDataChannel.label
 
     def close(self):
-        self._rtcDataChannel.close()
+        # self._rtcDataChannel.close()
         super().close()
 
 
@@ -103,7 +108,7 @@ class ConnectionVideoHandler(SubscriptionProducerConsumer):
         self._defaultReceiver = None
 
         # The defaultSender subscribes to this
-        self._defaultSenderSubscription = GetterSubscription(self._get)
+        self._defaultSenderSubscription = NoClosedSubscription(self._get)
 
         self._trackSubscriber = SubscriptionProducer(
             logger=self._log.getChild("trackSubscriber")
@@ -222,7 +227,7 @@ class ConnectionAudioHandler(SubscriptionProducerConsumer):
         self._defaultReceiver = None
 
         # The defaultSender subscribes to this
-        self._defaultSenderSubscription = GetterSubscription(self._get)
+        self._defaultSenderSubscription = NoClosedSubscription(self._get)
 
         self._trackSubscriber = SubscriptionProducer(
             logger=self._log.getChild("trackSubscriber")
@@ -379,7 +384,7 @@ class RTCConnection(SubscriptionProducerConsumer):
         )
         # Subscribe the default channel directly to our own inputs and outputs.
         # We have it listen to our own self._get, and write to our self._put_nowait
-        channel.putSubscription(GetterSubscription(self._get))
+        channel.putSubscription(NoClosedSubscription(self._get))
         channel.subscribe(self._put_nowait)
         self._dataChannels[channel.name] = channel
 
@@ -414,7 +419,7 @@ class RTCConnection(SubscriptionProducerConsumer):
         if channel.name == "default":
             # Subscribe the default channel directly to our own inputs and outputs.
             # We have it listen to our own self._get, and write to our self._put_nowait
-            channel.putSubscription(GetterSubscription(self._get))
+            channel.putSubscription(NoClosedSubscription(self._get))
             channel.subscribe(self._put_nowait)
 
             # Set the default channel

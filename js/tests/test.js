@@ -1,9 +1,8 @@
-const RTCConnection_ =
-  typeof RTCConnection == "undefined"
-    ? require("../rtcbot/rtcbot").RTCConnection
-    : RTCConnection;
-const Queue_ =
-  typeof Queue == "undefined" ? require("../rtcbot/rtcbot").Queue : Queue;
+const rtcbot_ =
+  typeof rtcbot == "undefined" ? require("../dist/rtcbot.cjs.js") : rtcbot;
+
+const RTCConnection = rtcbot_.RTCConnection;
+const Queue = rtcbot_.Queue;
 
 const assert =
   typeof chai == "undefined" ? require("chai").assert : chai.assert;
@@ -13,11 +12,11 @@ describe("RTCConnection", function() {
     testmsg1 = "Testy mc test-test";
     testmsg2 = "Hai wrld";
 
-    c1 = new RTCConnection_();
-    c2 = new RTCConnection_();
+    c1 = new RTCConnection();
+    c2 = new RTCConnection();
 
-    q1 = new Queue_();
-    q2 = new Queue_();
+    q1 = new Queue();
+    q2 = new Queue();
     c1.subscribe(m => q1.put_nowait(m));
     c2.subscribe(m => q2.put_nowait(m));
 

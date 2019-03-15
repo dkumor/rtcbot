@@ -36,7 +36,7 @@ async def connect(request):
 async def index(request):
     return web.Response(
         content_type="text/html",
-        text="""
+        text=r"""
     <html>
         <head>
             <title>RTCBot: Skeleton</title>
@@ -48,7 +48,7 @@ async def index(request):
             Open the browser's developer tools to see console messages (CTRL+SHIFT+C)
             </p>
             <script>
-                var conn = new RTCConnection();
+                var conn = new rtcbot.RTCConnection();
 
                 async function connect() {
                     let offer = await conn.getLocalDescription();
@@ -71,8 +71,12 @@ async def index(request):
     </html>
     """)
 
+async def cleanup(app):
+    await conn.close()
+
 app = web.Application()
 app.add_routes(routes)
+app.on_shutdown.append(cleanup)
 web.run_app(app)
 ```
 
@@ -117,7 +121,7 @@ All you need is to add a couple lines of code to the skeleton to get a fully-fun
  async def index(request):
      return web.Response(
          content_type="text/html",
-         text="""
+         text=r"""
      <html>
          <head>
              <title>RTCBot: Skeleton</title>
@@ -129,7 +133,7 @@ All you need is to add a couple lines of code to the skeleton to get a fully-fun
              Open the browser's developer tools to see console messages (CTRL+SHIFT+C)
              </p>
              <script>
-                 var conn = new RTCConnection();
+                 var conn = new rtcbot.RTCConnection();
 
 +                // When the video stream comes in, display it in the video element
 +                conn.video.subscribe(function(stream) {
@@ -157,13 +161,14 @@ All you need is to add a couple lines of code to the skeleton to get a fully-fun
      </html>
      """)
 
+ async def cleanup(app):
+     await conn.close()
++    camera.close() # Singletons like a camera are not awaited on close
+
  app = web.Application()
  app.add_routes(routes)
--web.run_app(app)
-+try:
-+    web.run_app(app)
-+finally:
-+    camera.close()
+ app.on_shutdown.append(cleanup)
+ web.run_app(app)
 ```
 
 One major difference between javascript and Python, is that the audio/video `subscribe` in javascript is only called once, and returns a
@@ -217,7 +222,6 @@ With this in mind, reversing the stream direction is a simple matter:
 
 ```python
 from aiohttp import web
-
 routes = web.RouteTableDef()
 
 from rtcbot import RTCConnection, getRTCBotJS, CVDisplay, Speaker
@@ -258,7 +262,7 @@ async def index(request):
             Open the browser's developer tools to see console messages (CTRL+SHIFT+C)
             </p>
             <script>
-                var conn = new RTCConnection();
+                var conn = new rtcbot.RTCConnection();
 
                 async function connect() {
 
@@ -286,13 +290,15 @@ async def index(request):
     </html>
     """)
 
-app = web.Application()
-app.add_routes(routes)
-try:
-    web.run_app(app)
-finally:
+async def cleanup(app):
+    await conn.close()
     display.close()
     speaker.close()
+
+app = web.Application()
+app.add_routes(routes)
+app.on_shutdown.append(cleanup)
+web.run_app(app)
 ```
 
 In the above code, instead of `CVCamera` and `Microphone`, `CVDisplay` and `Speaker` are used. In the javascript, we moved

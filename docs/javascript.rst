@@ -3,7 +3,11 @@ Javascript
 ====================
 
 The Javascript API for RTCBot is provided for simple interoperability of RTCBot and the browser. Wherever possible,
-the Javascript API mirrors the Python API. In particular, the `RTCConnection` class has identical members.
+the Javascript API mirrors the Python API, and can be used in exactly the same way.
+
+.. note::
+    The Javascript API includes only a minimal subset of the functionality of RTCBot's Python version. While this may change in the future,
+    many of the functions available in Python can't be used in javascript.
 
 Basic Usage
 ++++++++++++++++
@@ -65,7 +69,16 @@ Next, to establish the connection with Python, you include the Python counterpar
     web.run_app(app, port=8000)
 
 
-API
+Python API
++++++++++++++++
+
+.. automodule:: rtcbot.javascript
+    :members:
+    :undoc-members:
+    :inherited-members:
+    :show-inheritance:
+
+Javascript API
 ++++++++++++++++
 
 .. js:autoclass:: RTCConnection

@@ -126,8 +126,8 @@ class TestThreadedClasses(aiounittest.AsyncTestCase):
         await asyncio.sleep(0.01)
         self.assertEqual(c.testQueue.get(), "yeehaw")
 
-        # wait 10 seconds to make sure the no incoming data line of code runs #codeCoverage
-        await asyncio.sleep(10)
+        # wait 2 seconds to make sure the data timeout runs
+        await asyncio.sleep(2)
 
         c.close()
         await asyncio.sleep(0.01)

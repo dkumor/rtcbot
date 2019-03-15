@@ -43,7 +43,7 @@ async def index(request):
             Open the browser's developer tools to see console messages (CTRL+SHIFT+C)
             </p>
             <script>
-                var conn = new RTCConnection();
+                var conn = new rtcbot.RTCConnection();
 
                 async function connect() {
 
@@ -73,10 +73,13 @@ async def index(request):
     )
 
 
-app = web.Application()
-app.add_routes(routes)
-try:
-    web.run_app(app)
-finally:
+async def cleanup(app):
+    await conn.close()
     display.close()
     speaker.close()
+
+
+app = web.Application()
+app.add_routes(routes)
+app.on_shutdown.append(cleanup)
+web.run_app(app)

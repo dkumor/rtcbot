@@ -93,17 +93,22 @@ class ThreadedSubscriptionConsumer(BaseSubscriptionConsumer, threadedEventHandle
         This is not a coroutine - it is to be called in the worker thread.
         If the worker thread is to be shut down, raises a SubscriptionClosed exception.
         """
+        timedout = False
         while not self._shouldClose:
             with self._taskLock:
-                self._getTask = asyncio.run_coroutine_threadsafe(
-                    self._subscription.get(), self._loop
-                )
+                # Only create a new task if it was finished, and did not time out
+                if not timedout:
+                    self._getTask = asyncio.run_coroutine_threadsafe(
+                        self._subscription.get(), self._loop
+                    )
+            timedout = False
             try:
                 return self._getTask.result(1)
             except asyncio.CancelledError:
                 self.__sclog.debug("Subscription cancelled - checking for new tasks")
             except asyncio.TimeoutError:
                 self.__sclog.debug("No incoming data for 1 second...")
+                timedout = True
             except SubscriptionClosed:
                 self.__sclog.debug(
                     "Incoming stream closed... Checking for new subscription"
@@ -142,11 +147,11 @@ class ThreadedSubscriptionConsumer(BaseSubscriptionConsumer, threadedEventHandle
 
     def close(self):
         """
-        Closes the object. Note that it is not recommended
-        to call this in an async function, since it waits until the background thread joins.
-
         The object is meant to be used as a singleton, which is initialized at the start of your code,
         and is closed when exiting the program.
+
+        Make sure to run close on exit, since sometimes Python has trouble exiting from multiple threads without
+        having them closed explicitly.
         """
         with self._taskLock:
             super().close()

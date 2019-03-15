@@ -118,3 +118,5 @@ dmypy.json
 _build
 _static
 _templates
+
+node_modules/

@@ -55,10 +55,11 @@ routes = web.RouteTableDef()
 
 from rtcbot import RTCConnection, getRTCBotJS
 
-conn = RTCConnection() # For this example, we use just one global connection
+# For this example, we use just one global connection
+conn = RTCConnection()
 
 @conn.subscribe
-def onMessage(msg):  # Called when messages received from browser
+def onMessage(msg):  # Called when each message is sent
     print("Got message:", msg)
 
 # Serve the RTCBot javascript library at /rtcbot.js
@@ -92,7 +93,7 @@ async def index(request):
             Open the browser's developer tools to see console messages (CTRL+SHIFT+C)
             </p>
             <script>
-                var conn = new RTCConnection();
+                var conn = new rtcbot.RTCConnection();
 
                 async function connect() {
                     let offer = await conn.getLocalDescription();
@@ -120,9 +121,13 @@ async def index(request):
     </html>
     """)
 
+async def cleanup(app):
+    await conn.close()
+
 
 app = web.Application()
 app.add_routes(routes)
+app.on_shutdown.append(cleanup)
 web.run_app(app)
 ```
 
@@ -160,7 +165,7 @@ The above code lets you add the RTCBot javascript to your html:
 <script src="/rtcbot.js"></script>
 ```
 
-The final python-based piece is the code that sets up a WebRTC connection:
+The next python-based piece is the code that sets up a WebRTC connection:
 
 ```python
 # This sets up the connection
@@ -174,10 +179,19 @@ async def connect(request):
 We will create what is called an "offer" in the browser, and POST it to `/connect`, which will create a response,
 and send back the information necessary to complete the connection.
 
+Finally, on application exit, we close the connection:
+
+```python
+async def cleanup(app):
+    await conn.close()
+
+app.on_shutdown.append(cleanup)
+```
+
 Next, let's look at the javascript:
 
 ```javascript
-var conn = new RTCConnection();
+var conn = new rtcbot.RTCConnection();
 
 async function connect() {
   let offer = await conn.getLocalDescription();
@@ -276,7 +290,7 @@ routes = web.RouteTableDef()
 
 from rtcbot import RTCConnection, getRTCBotJS
 
-conn = RTCConnection() # For this example, we use just one global connection
+conn = RTCConnection()  # For this example, we use just one global connection
 
 @conn.subscribe
 def onMessage(msg):  # Called when messages received from browser
@@ -314,7 +328,7 @@ async def index(request):
             Open the browser's developer tools to see console messages (CTRL+SHIFT+C)
             </p>
             <script>
-                var conn = new RTCConnection();
+                var conn = new rtcbot.RTCConnection();
 
                 conn.subscribe(m => console.log("Received from python:", m));
 
@@ -344,9 +358,12 @@ async def index(request):
     </html>
     """)
 
+async def cleanup(app):
+    await conn.close()
 
 app = web.Application()
 app.add_routes(routes)
+app.on_shutdown.append(cleanup)
 web.run_app(app)
 ```
 

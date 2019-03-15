@@ -5,6 +5,7 @@ from .base import (
     SubscriptionProducer,
     SubscriptionProducerConsumer,
     SubscriptionClosed,
+    NoClosedSubscription,
 )
 from .thread import ThreadedSubscriptionConsumer, ThreadedSubscriptionProducer
 from .multiprocess import ProcessSubscriptionProducer

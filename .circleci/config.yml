@@ -8,7 +8,7 @@ jobs:
     docker:
       # specify the version you desire here
       # use `-browsers` prefix for selenium tests, e.g. `3.6.1-browsers`
-      - image: circleci/python:3.6.1
+      - image: circleci/python:3.5-stretch
 
       # Specify service dependencies here if necessary
       # CircleCI maintains a library of pre-built images
@@ -31,7 +31,7 @@ jobs:
           name: install dependencies
           command: |
             sudo apt-get update -yqq
-            sudo apt-get install -yqq libmp3lame-dev libopus-dev libvpx-dev libx264-dev yasm
+            sudo apt-get install -yqq libmp3lame-dev libopus-dev libvpx-dev libx264-dev libavdevice-dev libavfilter-dev yasm
             sudo apt install \
               autoconf \
               automake \
@@ -48,6 +48,8 @@ jobs:
               wget \
               yasm \
               zlib1g-dev
+            curl -sL https://deb.nodesource.com/setup_11.x | sudo -E bash -
+            sudo apt-get install -y nodejs
 
             wget http://ffmpeg.org/releases/ffmpeg-3.2.tar.bz2
             tar -xjf ffmpeg-3.2.tar.bz2
@@ -60,6 +62,7 @@ jobs:
             python3 -m venv venv
             . venv/bin/activate
             pip install -r requirements.txt
+            cd js; npm i; cd ..
 
       - save_cache:
           paths:
@@ -76,7 +79,8 @@ jobs:
           name: run tests
           command: |
             . venv/bin/activate
-            ./runtests
+            make js
+            make test
 
       - store_artifacts:
           path: test-reports

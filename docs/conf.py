@@ -17,7 +17,6 @@ import sys
 
 sys.path.insert(0, os.path.abspath("../"))
 
-
 # -- Project information -----------------------------------------------------
 
 project = "RTCBot"
@@ -53,7 +52,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx_autodoc_typehints",
 ]
-js_source_path = "../rtcbot/"
+js_source_path = "../js/src"
 
 intersphinx_mapping = {
     "soundcard": ("https://soundcard.readthedocs.io/en/latest/", None),

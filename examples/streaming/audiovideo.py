@@ -31,7 +31,7 @@ async def connect(request):
 async def index(request):
     return web.Response(
         content_type="text/html",
-        text="""
+        text=r"""
     <html>
         <head>
             <title>RTCBot: Skeleton</title>
@@ -43,7 +43,7 @@ async def index(request):
             Open the browser's developer tools to see console messages (CTRL+SHIFT+C)
             </p>
             <script>
-                var conn = new RTCConnection();
+                var conn = new rtcbot.RTCConnection();
 
                 conn.video.subscribe(function(stream) {
                     document.querySelector("video").srcObject = stream;
@@ -75,10 +75,13 @@ async def index(request):
     )
 
 
+async def cleanup(app):
+    await conn.close()
+    mic.close()
+    camera.close()
+
+
 app = web.Application()
 app.add_routes(routes)
-try:
-    web.run_app(app)
-finally:
-    camera.close()
-    mic.close()
+app.on_shutdown.append(cleanup)
+web.run_app(app)

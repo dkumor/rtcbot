@@ -3,11 +3,12 @@ import os.path
 __moduleDir = os.path.dirname(__file__)
 
 
-def getRTCBotJS(minified=True):
+def getRTCBotJS():
     """
     Returns the RTCBot javascript. This allows you to easily write self-contained scripts.
-    You can then serve it like this::
+    You can serve it like this::
 
+        from rtcbot import getRTCBotJS
         from aiohttp import web
         routes = web.RouteTableDef()
 
@@ -19,12 +20,12 @@ def getRTCBotJS(minified=True):
         app.add_routes(routes)
         web.run_app(app, port=8000)
 
+    If you are writing a more complex application, you might want to bundle RTCBot's javascript
+    with your code using rollup or webpack instead of including it in script tags.
+    To do this, you can install the js library separately with npm, and bundle it however you'd like::
+
+        npm i rtcbot
+
     """
-    if minified:
-        try:
-            with open(os.path.join(__moduleDir, "rtcbot.min.js"), "r") as f:
-                return f.read()
-        except:
-            pass
     with open(os.path.join(__moduleDir, "rtcbot.js"), "r") as f:
         return f.read()

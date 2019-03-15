@@ -60,36 +60,6 @@ class MostRecentSubscription:
         return self._element
 
 
-class CallbackSubscription:
-    """
-    Sometimes you don't want to await anything, you just want to run a callback upon an event.
-    The CallbackSubscription allows you to do precisely that::
-
-        @CallbackSubscription
-        async def mycallback(value):
-            print(value)
-
-        cam = CVCamera()
-        cam.subscribe(mycallback)
-
-
-    """
-
-    def __init__(self, callback, loop=None, runDirect=False):
-        self._callback = callback
-        self._loop = loop
-        self._runDirect = runDirect
-        if self._loop is None:
-            self._loop = asyncio.get_event_loop()
-
-    def put_nowait(self, element):
-        # We don't want to stall the event loop at this moment - we call it soon enough.
-        if self._runDirect:
-            self._callback(element)
-        else:
-            self._loop.call_soon(partial(self._callback, element))
-
-
 class GetterSubscription:
     """
     You might have a function which behaves like a get(), but it is just a function.
@@ -111,6 +81,38 @@ class GetterSubscription:
         return await self._callback()
 
 
+class CallbackSubscription:
+    """
+    Sometimes you don't want to await anything, you just want to run a callback upon an event.
+    The CallbackSubscription allows you to do precisely that::
+
+        @CallbackSubscription
+        async def mycallback(value):
+            print(value)
+
+        cam = CVCamera()
+        cam.subscribe(mycallback)
+
+    Note: 
+        This is no longer necessary: you can just pass a function to `subscribe`, and it will automatically
+        be wrapped in a `CallbackSubscription`.
+    """
+
+    def __init__(self, callback, loop=None, runDirect=False):
+        self._callback = callback
+        self._loop = loop
+        self._runDirect = runDirect
+        if self._loop is None:
+            self._loop = asyncio.get_event_loop()
+
+    def put_nowait(self, element):
+        # We don't want to stall the event loop at this moment - we call it soon enough.
+        if self._runDirect:
+            self._callback(element)
+        else:
+            self._loop.call_soon(partial(self._callback, element))
+
+
 class DelayedSubscription:
     """
     In some instances, you want to subscribe to something, but don't actually want to start
@@ -125,14 +127,14 @@ class DelayedSubscription:
 
         s = Microphone().subscribe()
         conn = RTCConnection()
-        conn.addAudio(s) # Big audio delay!
+        conn.audio.putSubscription(s) # Big audio delay!
 
     Instead, what you want to do is delay subscribing until `get` is called the first time, which would
     wait until the connection is ready to start sending data::
 
         s = DelayedSubscription(Microphone())
         conn = RTCConnection()
-        conn.addAudio(s) # Calls Microphone.subscribe() on first get()
+        conn.audio.putSubscription(s) # Calls Microphone.subscribe() on first get()
 
     One caveat is that calling `unsubscribe` will not work on the DelayedSubscription - you must use
     unsubscribe as given in the DelayedSubscription! That means::
