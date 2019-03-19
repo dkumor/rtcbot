@@ -1,6 +1,0 @@
-#!/bin/bash
-# This is run on startup
-
-cd /home/pi/baja
-nohup python3 -u baja.py &> baja.log < /dev/null &
-echo $! > baja.pid

@@ -1,6 +1,7 @@
 # RTCBot
 
 [![PyPI](https://img.shields.io/pypi/v/rtcbot.svg?style=flat-square)](https://pypi.org/project/rtcbot/)
+[![npm](https://img.shields.io/npm/v/rtcbot.svg?style=flat-square)](https://www.npmjs.com/package/rtcbot)
 [![Documentation Status](https://readthedocs.org/projects/rtcbot/badge/?version=latest&style=flat-square)](https://rtcbot.readthedocs.io/en/latest/?badge=latest)
 [![Join the chat at https://gitter.im/rtcbot/community](https://img.shields.io/gitter/room/dkumor/rtcbot.svg?style=flat-square)](https://gitter.im/rtcbot/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![CircleCI](https://circleci.com/gh/dkumor/rtcbot.svg?style=svg)](https://circleci.com/gh/dkumor/rtcbot)

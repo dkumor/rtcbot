@@ -1,5 +1,0 @@
-#!/bin/bash
-
-PASS=dayumGurl
-SSH="sshpass -p $PASS ssh"
-LOC=pi@192.168.50.183

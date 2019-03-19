@@ -32,7 +32,7 @@ With the following code, you can listen to yourself. Make sure to wear headphone
         microphone.close()
         speaker.close()
 
-Naturally, the raw data can be manipulated with numpy. For example, the following code makes the output tfive times as loud::
+Naturally, the raw data can be manipulated with numpy. For example, the following code makes the output five times as loud::
 
     import asyncio
     from rtcbot import Microphone, Speaker
