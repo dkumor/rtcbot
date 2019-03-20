@@ -34,7 +34,7 @@ async def index(request):
         text=r"""
     <html>
         <head>
-            <title>RTCBot: Skeleton</title>
+            <title>RTCBot: Audio & Video</title>
             <script src="/rtcbot.js"></script>
         </head>
         <body style="text-align: center;padding-top: 30px;">

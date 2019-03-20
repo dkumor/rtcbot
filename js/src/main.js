@@ -1,6 +1,7 @@
 import RTCConnection from "./connection.js";
+import { Keyboard, Gamepad, setGamepadRate } from "./inputs.js";
 
-export { RTCConnection };
+export { RTCConnection, Keyboard, Gamepad, setGamepadRate };
 
 export class Queue {
   /**

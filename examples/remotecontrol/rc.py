@@ -2,12 +2,34 @@ from aiohttp import web
 
 routes = web.RouteTableDef()
 
-from rtcbot import RTCConnection, getRTCBotJS, CVCamera
+from rtcbot import RTCConnection, CVCamera, getRTCBotJS
 
-camera = CVCamera()
+cam = CVCamera()
+
 # For this example, we use just one global connection
 conn = RTCConnection()
-conn.video.putSubscription(camera)
+conn.video.putSubscription(cam)
+
+keystates = {"w": False, "a": False, "s": False, "d": False}
+
+
+@conn.subscribe
+def onMessage(m):
+    global keystates
+    if m["keyCode"] == 87:  # W
+        keystates["w"] = m["type"] == "keydown"
+    elif m["keyCode"] == 83:  # S
+        keystates["s"] = m["type"] == "keydown"
+    elif m["keyCode"] == 65:  # A
+        keystates["a"] = m["type"] == "keydown"
+    elif m["keyCode"] == 68:  # D
+        keystates["d"] = m["type"] == "keydown"
+    print(
+        {
+            "forward": keystates["w"] * 1 - keystates["s"] * 1,
+            "leftright": keystates["d"] * 1 - keystates["a"] * 1,
+        }
+    )
 
 
 # Serve the RTCBot javascript library at /rtcbot.js
@@ -28,10 +50,10 @@ async def connect(request):
 async def index(request):
     return web.Response(
         content_type="text/html",
-        text="""
+        text=r"""
     <html>
         <head>
-            <title>RTCBot: Video</title>
+            <title>RTCBot: Remote Control</title>
             <script src="/rtcbot.js"></script>
         </head>
         <body style="text-align: center;padding-top: 30px;">
@@ -41,10 +63,11 @@ async def index(request):
             </p>
             <script>
                 var conn = new rtcbot.RTCConnection();
-
                 conn.video.subscribe(function(stream) {
                     document.querySelector("video").srcObject = stream;
                 });
+
+                var kb = new rtcbot.Keyboard();
 
                 async function connect() {
                     let offer = await conn.getLocalDescription();
@@ -57,6 +80,8 @@ async def index(request):
                     });
 
                     await conn.setRemoteDescription(await response.json());
+
+                    kb.subscribe(conn.put_nowait);
 
                     console.log("Ready!");
                 }
@@ -71,7 +96,6 @@ async def index(request):
 
 async def cleanup(app):
     await conn.close()
-    camera.close()
 
 
 app = web.Application()

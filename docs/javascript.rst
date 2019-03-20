@@ -94,5 +94,11 @@ Javascript API
 .. js:autoclass:: RTCConnection
    :members:
 
+.. js:autoclass:: Keyboard
+   :members:
+
+.. js:autoclass:: Gamepad
+   :members:
+
 .. js:autoclass:: Queue
    :members:

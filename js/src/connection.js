@@ -73,6 +73,9 @@ class RTCConnection {
     this._defaultChannel = null;
     this._defaultOrdered = defaultOrdered;
     this.__queuedMessages = [];
+
+    // Bind the put_nowait method
+    this.put_nowait = this.put_nowait.bind(this);
   }
 
   async _waitForICECandidates() {

@@ -15,6 +15,7 @@ even when it is not connected to your local network.
 .. toctree::
    :maxdepth: 2
 
+   installing
    examples/index
    API
 

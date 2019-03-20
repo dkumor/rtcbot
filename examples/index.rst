@@ -6,7 +6,7 @@ The tutorials will lead you through creating remote control software for your ow
 
 Each tutorial builds upon the previous one's code, so it is important to go in order.
 
-The full code for each of the tutorials can be seen in the [examples directory](https://github.com/dkumor/rtcbot/tree/master/examples)
+The full code for each of the tutorials can be seen in the `examples directory <https://github.com/dkumor/rtcbot/tree/master/examples>`_.
 
 
 

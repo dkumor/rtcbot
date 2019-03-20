@@ -12,7 +12,7 @@ dist: js phony
 	rm -rf ./dist
 	python setup.py sdist bdist_wheel
 
-upload: dist phony
+publish: dist phony
 	cd js; npm publish
 	twine upload dist/*
 
