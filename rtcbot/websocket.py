@@ -10,7 +10,21 @@ from .base import SubscriptionProducerConsumer, SubscriptionClosed
 
 class Websocket(SubscriptionProducerConsumer):
     """
-    Wraps an aiohttp websocket to have an API matching RTCBot
+    Wraps an aiohttp websocket to have an API matching RTCBot. The websocket 
+    can be given either a URL to connect to::
+
+        ws = Websocket("http://localhost:8080/ws")
+        msg = await ws.get()
+
+    It can also be used in a server context to complete the connection::
+
+        @routes.get("/ws")
+        async def websocketHandler(request):
+            ws = Websocket(request)
+            msg = await ws.get()
+
+    Naturally, just like all other parts of rtcbot, you can also `subscribe` and `putSubscription`
+    instead of manually calling `get` and `put_nowait`.
     """
 
     _log = logging.getLogger("rtcbot.Websocket")
@@ -22,7 +36,7 @@ class Websocket(SubscriptionProducerConsumer):
             self._loop = asyncio.get_event_loop()
 
         self._json = json
-        self._ws = None
+        self.ws = None
         self._client = None
 
         asyncio.ensure_future(self._wsSender(url_or_request))
@@ -31,11 +45,11 @@ class Websocket(SubscriptionProducerConsumer):
         if isinstance(url_or_request, str):
             # Connect to a remote websocket
             self._client = aiohttp.ClientSession(loop=self._loop)
-            self._ws = await self._client.ws_connect(url_or_request)
+            self.ws = await self._client.ws_connect(url_or_request)
         else:
             # Handle an incoming websocket as server software.
-            self._ws = web.WebSocketResponse(autoclose=False)
-            await self._ws.prepare(url_or_request)
+            self.ws = web.WebSocketResponse(autoclose=False)
+            await self.ws.prepare(url_or_request)
 
         self._log.debug("Connection established")
         # Create a separate coroutine for sending messages
@@ -48,7 +62,7 @@ class Websocket(SubscriptionProducerConsumer):
                 if self._json:
                     msg = json.dumps(msg)
                 self._log.debug("Sending message %s", msg)
-                await self._ws.send_str(msg)
+                await self.ws.send_str(msg)
             except SubscriptionClosed:
                 break
         self._log.debug("Stopping websocket sender")
@@ -57,7 +71,7 @@ class Websocket(SubscriptionProducerConsumer):
         # Once this coroutine starts, fire the ready event
         self._setReady(True)
 
-        async for msg in self._ws:
+        async for msg in self.ws:
             self._log.debug(msg)
             if msg.type == aiohttp.WSMsgType.TEXT:
                 data = msg.data
@@ -73,7 +87,7 @@ class Websocket(SubscriptionProducerConsumer):
                     self._log.exception("Error in message handler")
 
             elif msg.type == aiohttp.WSMsgType.ERROR:
-                self._setError(self._ws.exception())
+                self._setError(self.ws.exception())
                 break
             if self._shouldClose:
                 break
@@ -81,17 +95,16 @@ class Websocket(SubscriptionProducerConsumer):
         await self._clientClose()
 
     async def _clientClose(self):
-        if self._ws is not None:
-            await self._ws.close()
-            self._ws = None
-            if self._client is not None:
-                await self._client.close()
+        if self.ws is not None and not self.ws.closed:
+            await self.ws.close()
+        if self._client is not None and not self._client.closed:
+            await self._client.close()
         super().close()
 
         self._log.debug("Finished closing websocket")
 
     def close(self):
-        if self._ws is not None:
+        if self.ws is not None:
             if self._loop.is_running():
                 self._log.debug("Loop is running - close will return a future!")
                 return asyncio.ensure_future(self._clientClose())

@@ -4,6 +4,9 @@ import asyncio
 
 from .base import ProcessSubscriptionProducer, SubscriptionClosed
 
+# The messages to filter by default
+defaultFilter = lambda x: x["code"] != "SYN_REPORT"
+
 
 class InputDevice(ProcessSubscriptionProducer):
     """
@@ -13,7 +16,7 @@ class InputDevice(ProcessSubscriptionProducer):
 
     _log = logging.getLogger("rtcbot.InputDevice")
 
-    def __init__(self, device, eventFilter=lambda x: True, loop=None):
+    def __init__(self, device, eventFilter=defaultFilter, loop=None):
         self._device = device
         self._eventFilter = eventFilter
 
@@ -45,15 +48,15 @@ class InputDevice(ProcessSubscriptionProducer):
 
 
 class Gamepad(InputDevice):
-    def __init__(self, eventFilter=lambda x: True, loop=None):
+    def __init__(self, eventFilter=defaultFilter, loop=None):
         super().__init__(devices.gamepads[0], eventFilter=eventFilter, loop=loop)
 
 
 class Mouse(InputDevice):
-    def __init__(self, eventFilter=lambda x: True, loop=None):
+    def __init__(self, eventFilter=defaultFilter, loop=None):
         super().__init__(devices.mice[0], eventFilter=eventFilter, loop=loop)
 
 
 class Keyboard(InputDevice):
-    def __init__(self, eventFilter=lambda x: True, loop=None):
+    def __init__(self, eventFilter=defaultFilter, loop=None):
         super().__init__(devices.keyboards[0], eventFilter=eventFilter, loop=loop)

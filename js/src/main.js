@@ -1,7 +1,8 @@
 import RTCConnection from "./connection.js";
+import Websocket from "./websocket.js";
 import { Keyboard, Gamepad, setGamepadRate } from "./inputs.js";
 
-export { RTCConnection, Keyboard, Gamepad, setGamepadRate };
+export { RTCConnection, Websocket, Keyboard, Gamepad, setGamepadRate };
 
 /**
  * A simple async queue. Useful for converting callbacks into async operations.

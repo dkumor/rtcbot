@@ -224,7 +224,7 @@ This tutorial introduced the basics of RTCBot, with a focus on the fundamentals:
 3. `putSubscription` takes any object with a `get` coroutine
 4. Subscribe can also be used for direct callbacks, or with custom subscriptions.
 
-### Extra Notes
+## Extra Notes
 
 Each producer can have multiple subscriptions active at the same time. This code shows two different windows with the same video feed:
 

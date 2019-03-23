@@ -109,7 +109,7 @@ class ProcessSubscriptionProducer(BaseSubscriptionProducer):
         # This function sets up the producer. In particular, it receives KeyboardInterrupts
 
         def handleInterrupt(sig, frame):
-            self.__splog.warning("Received KeyboardInterrupt - not notifying process")
+            self.__splog.debug("Received KeyboardInterrupt - not notifying process")
 
         old_handler = signal.signal(signal.SIGINT, handleInterrupt)
         try:
@@ -147,6 +147,6 @@ class ProcessSubscriptionProducer(BaseSubscriptionProducer):
         self._producerProcess.join(self._joinTimeout)
         self.__queueReaderThread.join()
         if self._producerProcess.is_alive():
-            self.__splog.warning("Process did not terminate in time. Killing it.")
+            self.__splog.debug("Process did not terminate in time. Killing it.")
             self._producerProcess.terminate()
             self._producerProcess.join()
