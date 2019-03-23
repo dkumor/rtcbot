@@ -24,6 +24,8 @@ The library is explained piece by piece in [the documentation](https://rtcbot.re
 
 This example uses RTCBot to live stream a webcam to the browser. For details, please look at [the tutorials](https://rtcbot.readthedocs.io/en/latest/examples/index.html).
 
+Python code that streams video to the browser:
+
 ```python
 from aiohttp import web
 routes = web.RouteTableDef()
@@ -49,46 +51,8 @@ async def connect(request):
 
 @routes.get("/")
 async def index(request):
-    return web.Response(
-        content_type="text/html",
-        text="""
-    <html>
-        <head>
-            <title>RTCBot: Video</title>
-            <script src="/rtcbot.js"></script>
-        </head>
-        <body style="text-align: center;padding-top: 30px;">
-            <video autoplay playsinline></video> <audio autoplay></audio>
-            <p>
-            Open the browser's developer tools to see console messages (CTRL+SHIFT+C)
-            </p>
-            <script>
-                var conn = new rtcbot.RTCConnection();
-
-                conn.video.subscribe(function(stream) {
-                    document.querySelector("video").srcObject = stream;
-                });
-
-                async function connect() {
-                    let offer = await conn.getLocalDescription();
-
-                    // POST the information to /connect
-                    let response = await fetch("/connect", {
-                        method: "POST",
-                        cache: "no-cache",
-                        body: JSON.stringify(offer)
-                    });
-
-                    await conn.setRemoteDescription(await response.json());
-
-                    console.log("Ready!");
-                }
-                connect();
-
-            </script>
-        </body>
-    </html>
-    """)
+    with open("index.html", "r") as f:
+        return web.Response(content_type="text/html", text=f.read())
 
 async def cleanup(app):
     await conn.close()
@@ -98,4 +62,44 @@ app = web.Application()
 app.add_routes(routes)
 app.on_shutdown.append(cleanup)
 web.run_app(app)
+```
+
+Browser code (index.html) that displays the video stream:
+
+```html
+<html>
+  <head>
+    <title>RTCBot: Video</title>
+    <script src="/rtcbot.js"></script>
+  </head>
+  <body style="text-align: center;padding-top: 30px;">
+    <video autoplay playsinline></video> <audio autoplay></audio>
+    <p>
+      Open the browser's developer tools to see console messages (CTRL+SHIFT+C)
+    </p>
+    <script>
+      var conn = new rtcbot.RTCConnection();
+
+      conn.video.subscribe(function(stream) {
+        document.querySelector("video").srcObject = stream;
+      });
+
+      async function connect() {
+        let offer = await conn.getLocalDescription();
+
+        // POST the information to /connect
+        let response = await fetch("/connect", {
+          method: "POST",
+          cache: "no-cache",
+          body: JSON.stringify(offer)
+        });
+
+        await conn.setRemoteDescription(await response.json());
+
+        console.log("Ready!");
+      }
+      connect();
+    </script>
+  </body>
+</html>
 ```

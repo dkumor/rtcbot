@@ -50,6 +50,12 @@ class ThreadedSubscriptionProducer(BaseSubscriptionProducer, threadedEventHandle
         self.testResultQueue.put("<<END>>")
         self._setReady(False)
 
+    def _close(self):
+        """
+        Can be called by the external thread to close in a threadsafe manner
+        """
+        self._loop.call_soon_threadsafe(super()._close)
+
     def close(self):
         """
         Shuts down data gathering, and closes all subscriptions. Note that it is not recommended
@@ -144,6 +150,12 @@ class ThreadedSubscriptionConsumer(BaseSubscriptionConsumer, threadedEventHandle
     def putSubscription(self, subscription):
         with self._taskLock:
             super().putSubscription(subscription)
+
+    def _close(self):
+        """
+        Can be called by the external thread to close in a threadsafe manner
+        """
+        self._loop.call_soon_threadsafe(super()._close)
 
     def close(self):
         """

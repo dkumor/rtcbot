@@ -9,3 +9,6 @@ pynmea2
 nose
 aiounittest
 coverage
+pytest
+pytest-asyncio
+pytest-aiohttp

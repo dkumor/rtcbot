@@ -66,7 +66,51 @@ class RTCConnection {
     this._rtc.ondatachannel = this._onDataChannel.bind(this);
     this._rtc.ontrack = this._onTrack.bind(this);
 
+    /**
+     * Just like in the Python version, the video element allows you to directly access video streams.
+     * The following functions are available:
+     *
+     * - `subscribe()`: Unlike in Python, this is given a callback which is called *once*, when the stream
+     *  is received.
+     *
+     *  .. code-block:: javascript
+     *
+     *    conn.video.subscribe(function(stream) {
+     *      document.querySelector("video").srcObject = stream;
+     *    });
+     *
+     * - `putSubscription()`: Allows to send a video stream:
+     *
+     *  .. code-block:: javascript
+     *
+     *    let streams = await navigator.mediaDevices.getUserMedia({audio: false, video: true});
+     *    conn.video.putSubscription(streams.getVideoTracks()[0]);
+     *
+     *
+     */
     this.video = new ConnectionStreamHandler(this._rtc);
+    /**
+     * The audio element allows you to directly access audio streams.
+     * The following functions are available:
+     *
+     * - `subscribe()`: Unlike in Python, this is given a callback which is called *once*, when the stream
+     *  is received.
+     *
+     *  .. code-block:: javascript
+     *
+     *    conn.audio.subscribe(function(stream) {
+     *      document.querySelector("audio").srcObject = stream;
+     *    });
+     *
+     * - `putSubscription()`: Allows to send a video stream:
+     *
+     *  .. code-block:: javascript
+     *
+     *    let streams = await navigator.mediaDevices.getUserMedia({audio: true, video: false});
+     *    conn.audio.putSubscription(streams.getAudioTracks()[0]);
+     *
+     *
+     */
     this.audio = new ConnectionStreamHandler(this._rtc);
 
     this._hasRemoteDescription = false;
@@ -96,7 +140,11 @@ class RTCConnection {
       }
     });
   }
-
+  /**
+   * Sets up the connection. If no description is passed in, creates an initial description.
+   * If a description is given, creates a response to it.
+   * @param {*} description (optional)
+   */
   async getLocalDescription(description = null) {
     /**
      * Gets the description
@@ -141,6 +189,11 @@ class RTCConnection {
     await this._waitForICECandidates();
     return this._rtc.localDescription;
   }
+  /**
+   * When initializing a connection, this response reads the remote response to an initial
+   * description.
+   * @param {*} description
+   */
   async setRemoteDescription(description) {
     await this._rtc.setRemoteDescription(description);
     this._hasRemoteDescription = true;
@@ -186,9 +239,21 @@ class RTCConnection {
     //console.log("got message", message);
     this._msgcallback(message.data);
   }
+  /**
+   * Subscribe to incoming messages. Unlike in the Python libary, which can accept
+   * a wide variety of inputs, the `subscribe` function in javascript only allows simple
+   * callbacks.
+   *
+   * @param {*} s A function to call each time a new message comes in
+   */
   subscribe(callback) {
     this._msgcallback = callback;
   }
+  /**
+   * Send the given data over a data stream.
+   *
+   * @param {*} msg - Message to send
+   */
   put_nowait(msg) {
     if (typeof msg !== "string") {
       msg = JSON.stringify(msg);
@@ -205,6 +270,9 @@ class RTCConnection {
       this.__queuedMessages.push(msg);
     }
   }
+  /**
+   * Close the connection
+   */
   async close() {
     for (let chan in this._dataChannels) {
       chan.close();

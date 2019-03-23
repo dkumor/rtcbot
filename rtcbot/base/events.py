@@ -26,8 +26,10 @@ class baseEventHandler:
     def __init__(self, logger):
         self.__onError = set()
         self.__onReady = set()
+        self.__onClose = set()
 
         self.__readyEvent = asyncio.Event()
+        self.__closeEvent = asyncio.Event()
         self.__error = None
         self.__logger = logger
 
@@ -64,7 +66,14 @@ class baseEventHandler:
         """
         return self.__error
 
-    def _setReady(self, value):
+    @property
+    def closed(self):
+        """
+        Returns whether the object was closed. This includes both thrown exceptions, and clean exits.
+        """
+        return self.__closeEvent.is_set()
+
+    def _setReady(self, value=True):
         """
         Sets the ready to `true`, and fires all subscriptions created with :func:`onReady`.
         Call this when your producer/consumer is fully initialized.
@@ -160,6 +169,46 @@ class baseEventHandler:
             subscription = EventSubscription()
         self.__onError.add(subscription)
         return subscription
+
+    def onClose(self, subscription=None):
+        """
+        This is mainly useful for connections - they can be closed remotely. This allows 
+        handling the close event. ::
+
+            @myobj.onClose
+            def closeCallback():
+                print("Closed!)
+        
+        Be aware that this is equivalent to explicitly awaiting the object::
+
+            await myobj
+
+        """
+        self.__logger.debug("Adding onClose subscription")
+        if subscription is None:
+            # the baseReadySubscription is a special case
+            subscription = baseReadySubscription(self.__closeEvent)
+        else:
+            self.__onClose.add(subscription)
+        return subscription
+
+    def __await__(self):
+        return self.onClose().__await__()
+
+    def close(self):
+        """
+        Fires the onClose event
+        """
+        if not self.__closeEvent.is_set():
+            self.__logger.debug("Firing onClose")
+            self.__closeEvent.set()
+            for subscription in self.__onClose:
+                if callable(getattr(subscription, "put_nowait", None)):
+                    subscription.put_nowait(None)
+                elif inspect.iscoroutinefunction(subscription):
+                    asyncio.ensure_future(subscription())
+                else:
+                    subscription()
 
 
 class threadedEventHandler(baseEventHandler):

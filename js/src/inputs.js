@@ -1,5 +1,13 @@
 /**
- * Keyboard subscribes to keypresses
+ * Keyboard subscribes to keypresses on the keyboard. Internally, the `keydown` and `keyup`
+ * events are used to get keys.
+ *
+ * .. code-block:: javascript
+ *
+ *  var kb = new rtcbot.Keyboard();
+ *  kb.subscribe(function(event) {
+ *    console.log(event); // prints the button and joystick events
+ *  })
  */
 class Keyboard {
   constructor() {
@@ -33,9 +41,19 @@ class Keyboard {
     });
     e.preventDefault();
   }
+  /**
+   * Subscribe to the events. Unlike in the Python libary, which can accept
+   * a wide variety of inputs, the `subscribe` function in javascript only allows simple
+   * callbacks.
+   *
+   * @param {*} s A function to call on each event
+   */
   subscribe(s) {
     this._subscription = s;
   }
+  /**
+   * Stop listening to keypresses
+   */
   close() {
     window.removeEventListener("keydown", this._de);
     window.removeEventListener("keyup", this._ue);
@@ -137,7 +155,7 @@ var gamepadHandler = new GamepadHandler();
 
 /**
  * Gamepads are polled at 10Hz by default, so that when moving joystick axes
- * a connection is not immeidately flooded with every miniscule joystick change.
+ * a connection is not immediately flooded with every miniscule joystick change.
  * To modify this behavior, you can set the rate in Hz, allowing lower latency,
  * with the downside of potentially lots of data suddenly overwhelming a connection.
  *
@@ -154,7 +172,17 @@ function setGamepadRate(rate) {
 }
 
 /**
- * Gamepad allows you to control a game pad
+ * Gamepad allows you to use an Xbox controller. It uses the browser Gamepad API,
+ * polling at 10Hz by default. Use `rtcbot.setGamepadRate` to change polling frequency.
+ *
+ * You must plug in the gamepad, and press a button on it for it to be recognized by the browser:
+ *
+ * .. code-block:: javascript
+ *
+ *  var gp = new rtcbot.Gamepad();
+ *  gp.subscribe(function(event) {
+ *    console.log(event); // prints the button and joystick events
+ *  })
  */
 class Gamepad {
   constructor() {
@@ -163,9 +191,19 @@ class Gamepad {
 
     this.state = null;
   }
+  /**
+   * Subscribe to the events. Unlike in the Python libary, which can accept
+   * a wide variety of inputs, the `subscribe` function in javascript only allows simple
+   * callbacks.
+   *
+   * @param {*} s A function to call on each event
+   */
   subscribe(s) {
     this._subscription = s;
   }
+  /**
+   * Stop polling the gamepad.
+   */
   close() {
     gamepadHandler.removeGamepad(this);
   }

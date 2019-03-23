@@ -73,6 +73,11 @@ class ProcessSubscriptionProducer(BaseSubscriptionProducer):
         self.__splog.debug("setting error to %s", err)
         self._producerQueue.put_nowait(internalSubscriptionMessage("error", err))
 
+    def _close(self):
+        # Here, we actually exploit the main producerQueue to send the events to the main thread
+        self.__splog.debug("sending close message")
+        self._producerQueue.put_nowait(internalSubscriptionMessage("close", True))
+
     def __queueReader(self):
         while not self._shouldClose:
             try:
@@ -82,6 +87,8 @@ class ProcessSubscriptionProducer(BaseSubscriptionProducer):
                         self._loop.call_soon_threadsafe(super()._setReady, data.value)
                     elif data.type == "error":
                         self._loop.call_soon_threadsafe(super()._setError, data.value)
+                    elif data.type == "close":
+                        self._loop.call_soon_threadsafe(super()._close)
                     else:
                         self.__splog.error("Unrecognized message: %s", data)
                 else:

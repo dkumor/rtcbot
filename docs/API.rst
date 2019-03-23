@@ -9,6 +9,7 @@ from your camera in a way easily compatible with asyncio, or sending commands to
    :maxdepth: 2
 
    rtcconnection
+   websocket
    camera
    audio
    inputs

@@ -291,6 +291,14 @@ class BaseSubscriptionProducer(baseEventHandler):
         self.__splog.debug("Closing")
         self._shouldClose = True
         self.unsubscribeAll()
+        super().close()
+
+    def _close(self):
+        """
+        This function allows closing from the handler itself. Don't call close() directly when implementing
+        producers or consumers. call `_close` instead.
+        """
+        self.close()
 
 
 class BaseSubscriptionConsumer(baseEventHandler):
@@ -471,6 +479,7 @@ class BaseSubscriptionConsumer(baseEventHandler):
         self._shouldClose = True
         if self._getTask is not None and not self._getTask.done():
             self._getTask.cancel()
+        super().close()
 
     @property
     def subscription(self):
@@ -532,3 +541,5 @@ class SubscriptionProducerConsumer(BaseSubscriptionConsumer, BaseSubscriptionPro
         BaseSubscriptionConsumer.close(self)
         BaseSubscriptionProducer.close(self)
 
+    def _close(self):
+        self.close()

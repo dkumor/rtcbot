@@ -100,5 +100,7 @@ Javascript API
 .. js:autoclass:: Gamepad
    :members:
 
+.. js:autofunction:: setGamepadRate
+
 .. js:autoclass:: Queue
    :members:

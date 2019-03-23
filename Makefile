@@ -17,7 +17,7 @@ publish: dist phony
 	twine upload dist/*
 
 test: phony
-	nosetests --with-coverage --cover-package=rtcbot --cover-html
+	pytest --cov=rtcbot
 	cd js; npm run test
 
 docs: phony

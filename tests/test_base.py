@@ -41,6 +41,7 @@ class TestBaseClasses(aiounittest.AsyncTestCase):
         c.put_nowait("Yo!")
 
         c.close()
+        await c
 
     async def test_SubscriptionProducer(self):
         p = SubscriptionProducer(asyncio.Queue, defaultAutosubscribe=True)
@@ -98,6 +99,8 @@ class TestBaseClasses(aiounittest.AsyncTestCase):
         p.unsubscribe()
 
         p.close()
+
+        await p
 
 
 class TestThreadedClasses(aiounittest.AsyncTestCase):
