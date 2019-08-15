@@ -20,6 +20,12 @@ The library is explained piece by piece in [the documentation](https://rtcbot.re
 
 ### [See Documentation & Tutorials](https://rtcbot.readthedocs.io/en/latest/index.html)
 
+## Installing
+
+```
+pip install rtcbot
+```
+
 ## Example
 
 This example uses RTCBot to live stream a webcam to the browser. For details, please look at [the tutorials](https://rtcbot.readthedocs.io/en/latest/examples/index.html).
@@ -103,3 +109,21 @@ Browser code (index.html) that displays the video stream:
   </body>
 </html>
 ```
+
+## Development
+
+To use `rtcbot` code directly, clone the repository, and install the requirements:
+
+```
+pip install -r requirements.txt
+```
+
+Then, you will need to perform the javascript build step, to prepare the browser code. This step requires both `make` and `npm` to be installed on your machine. To build the javascript, type in:
+
+```
+make js
+```
+
+This creates `rtcbot/rtcbot.js`, which is returned by `rtcbot.getRTCBotJS()`.
+
+After these two steps, you should be able to successfully import and use the library.

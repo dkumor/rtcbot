@@ -41,25 +41,17 @@ This code gives the following results:
 
     {'timestamp': 1552629001.833567, 'code': 'REL_X', 'state': 1, 'event': 'Relative'}
     {'timestamp': 1552629001.833567, 'code': 'REL_Y', 'state': 1, 'event': 'Relative'}
-    {'timestamp': 1552629001.833567, 'code': 'SYN_REPORT', 'state': 0, 'event': 'Sync'}
     {'timestamp': 1552629001.841518, 'code': 'REL_X', 'state': 2, 'event': 'Relative'}
-    {'timestamp': 1552629001.841518, 'code': 'SYN_REPORT', 'state': 0, 'event': 'Sync'}
     {'timestamp': 1552629001.889522, 'code': 'REL_X', 'state': 2, 'event': 'Relative'}
-    {'timestamp': 1552629001.889522, 'code': 'SYN_REPORT', 'state': 0, 'event': 'Sync'}
     {'timestamp': 1552629001.905525, 'code': 'REL_X', 'state': 3, 'event': 'Relative'}
     {'timestamp': 1552629001.905525, 'code': 'REL_Y', 'state': -2, 'event': 'Relative'}
-    {'timestamp': 1552629001.905525, 'code': 'SYN_REPORT', 'state': 0, 'event': 'Sync'}
     {'timestamp': 1552629002.16957, 'code': 'REL_X', 'state': 2, 'event': 'Relative'}
-    {'timestamp': 1552629002.16957, 'code': 'SYN_REPORT', 'state': 0, 'event': 'Sync'}
     {'timestamp': 1552629004.233588, 'code': 'MSC_SCAN', 'state': 589825, 'event': 'Misc'}
     {'timestamp': 1552629004.233588, 'code': 'BTN_LEFT', 'state': 1, 'event': 'Key'}
-    {'timestamp': 1552629004.233588, 'code': 'SYN_REPORT', 'state': 0, 'event': 'Sync'}
     {'timestamp': 1552629004.361593, 'code': 'MSC_SCAN', 'state': 589825, 'event': 'Misc'}
     {'timestamp': 1552629004.361593, 'code': 'BTN_LEFT', 'state': 0, 'event': 'Key'}
-    {'timestamp': 1552629004.361593, 'code': 'SYN_REPORT', 'state': 0, 'event': 'Sync'}
     {'timestamp': 1552629005.361596, 'code': 'MSC_SCAN', 'state': 589826, 'event': 'Misc'}
     {'timestamp': 1552629005.361596, 'code': 'BTN_RIGHT', 'state': 1, 'event': 'Key'}
-    {'timestamp': 1552629005.361596, 'code': 'SYN_REPORT', 'state': 0, 'event': 'Sync'}
 
 The REL_X and REL_Y codes refer to relative mouse motion. Here, the mouse started by moving 1 unit to the right (REL_X).
 
@@ -91,17 +83,11 @@ This code gives the following results:
 
     {'timestamp': 1552629513.7494, 'code': 'BTN_SOUTH', 'state': 1, 'event': 'Key'}
     {'timestamp': 1552629513.7494, 'code': 'ABS_Y', 'state': -1, 'event': 'Absolute'}
-    {'timestamp': 1552629513.7494, 'code': 'SYN_REPORT', 'state': 0, 'event': 'Sync'}
     {'timestamp': 1552629513.969403, 'code': 'BTN_SOUTH', 'state': 0, 'event': 'Key'}
-    {'timestamp': 1552629513.969403, 'code': 'SYN_REPORT', 'state': 0, 'event': 'Sync'}
     {'timestamp': 1552629517.089424, 'code': 'ABS_X', 'state': -253, 'event': 'Absolute'}
-    {'timestamp': 1552629517.089424, 'code': 'SYN_REPORT', 'state': 0, 'event': 'Sync'}
     {'timestamp': 1552629517.097385, 'code': 'ABS_X', 'state': -64, 'event': 'Absolute'}
-    {'timestamp': 1552629517.097385, 'code': 'SYN_REPORT', 'state': 0, 'event': 'Sync'}
     {'timestamp': 1552629517.109388, 'code': 'ABS_X', 'state': -211, 'event': 'Absolute'}
-    {'timestamp': 1552629517.109388, 'code': 'SYN_REPORT', 'state': 0, 'event': 'Sync'}
     {'timestamp': 1552629517.117379, 'code': 'ABS_X', 'state': -242, 'event': 'Absolute'}
-    {'timestamp': 1552629517.117379, 'code': 'SYN_REPORT', 'state': 0, 'event': 'Sync'}
 
 The resulting events are all button presses and joystick control. For example, ABS_X here refers to the 
 horizontal position of the right joystick on a wired Xbox controller.

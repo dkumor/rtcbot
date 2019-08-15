@@ -3,8 +3,10 @@
 # Empty rule for forcing rebuilds
 phony:
 
+js/node_modules:
+	cd js; npm i
 
-js: phony
+js: phony js/node_modules
 	cd js; npm run build
 	cp js/dist/rtcbot.umd.js rtcbot/rtcbot.js
 
