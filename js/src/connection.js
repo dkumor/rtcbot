@@ -50,11 +50,11 @@ class RTCConnection {
    * For detailed documentation, see the RTCConnection docs for Python.
    *
    * @param {*} defaultOrdered
-   * @param {*} options
+   * @param {*} rtcConfiguration is the configuration given to the RTC connection
    */
   constructor(
     defaultOrdered = true,
-    options = {
+    rtcConfiguration = {
       iceServers: [{ urls: ["stun:stun.l.google.com:19302"] }]
     }
   ) {
@@ -62,7 +62,7 @@ class RTCConnection {
 
     this._msgcallback = msg => console.log(msg);
 
-    this._rtc = new _RTCPeerConnection(options);
+    this._rtc = new _RTCPeerConnection(rtcConfiguration);
     this._rtc.ondatachannel = this._onDataChannel.bind(this);
     this._rtc.ontrack = this._onTrack.bind(this);
 

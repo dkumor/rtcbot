@@ -320,7 +320,7 @@ class ConnectionAudioHandler(SubscriptionProducerConsumer):
 class RTCConnection(SubscriptionProducerConsumer):
     _log = logging.getLogger("rtcbot.RTCConnection")
 
-    def __init__(self, defaultChannelOrdered=True, loop=None):
+    def __init__(self, defaultChannelOrdered=True, loop=None, rtcConfiguration=None):
         super().__init__(
             directPutSubscriptionType=asyncio.Queue,
             defaultSubscriptionType=asyncio.Queue,
@@ -336,8 +336,7 @@ class RTCConnection(SubscriptionProducerConsumer):
         self._dataChannelSubscriber = SubscriptionProducer(
             logger=self._log.getChild("dataChannelSubscriber")
         )
-
-        self._rtc = RTCPeerConnection()
+        self._rtc = RTCPeerConnection(configuration=rtcConfiguration)
         self._rtc.on("datachannel", self._onDatachannel)
         # self._rtc.on("iceconnectionstatechange", self._onIceConnectionStateChange)
         self._rtc.on("track", self._onTrack)

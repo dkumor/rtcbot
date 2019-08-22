@@ -47,7 +47,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.viewcode",
     "sphinx.ext.githubpages",
-    "sphinxcontrib.asyncio",
+    #"sphinxcontrib.asyncio",
     "sphinx_js",
     "sphinx.ext.napoleon",
     "sphinx_autodoc_typehints",
