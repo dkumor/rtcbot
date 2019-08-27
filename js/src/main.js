@@ -4,11 +4,11 @@ import { Keyboard, Gamepad, setGamepadRate } from "./inputs.js";
 
 export { RTCConnection, Websocket, Keyboard, Gamepad, setGamepadRate };
 
-/**
- * A simple async queue. Useful for converting callbacks into async operations.
- * The API imitates Python's asyncio.Queue, making it easy to avoid callback hell
- */
 export class Queue {
+  /**
+   * A simple async queue. Useful for converting callbacks into async operations.
+   * The API imitates Python's asyncio.Queue, making it easy to avoid callback hell
+   */
   constructor() {
     this._waiting = [];
     this._enqueued = [];

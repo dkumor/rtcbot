@@ -1,15 +1,16 @@
-/**
- * Keyboard subscribes to keypresses on the keyboard. Internally, the `keydown` and `keyup`
- * events are used to get keys.
- *
- * .. code-block:: javascript
- *
- *  var kb = new rtcbot.Keyboard();
- *  kb.subscribe(function(event) {
- *    console.log(event); // prints the button and joystick events
- *  })
- */
+
 class Keyboard {
+  /**
+   * Keyboard subscribes to keypresses on the keyboard. Internally, the `keydown` and `keyup`
+   * events are used to get keys.
+   *
+   * .. code-block:: javascript
+   *
+   *  var kb = new rtcbot.Keyboard();
+   *  kb.subscribe(function(event) {
+   *    console.log(event); // prints the button and joystick events
+   *  })
+   */
   constructor() {
     this._de = this._downEvent.bind(this);
     this._ue = this._upEvent.bind(this);
@@ -171,20 +172,21 @@ function setGamepadRate(rate) {
   gamepadHandler.init();
 }
 
-/**
- * Gamepad allows you to use an Xbox controller. It uses the browser Gamepad API,
- * polling at 10Hz by default. Use `rtcbot.setGamepadRate` to change polling frequency.
- *
- * You must plug in the gamepad, and press a button on it for it to be recognized by the browser:
- *
- * .. code-block:: javascript
- *
- *  var gp = new rtcbot.Gamepad();
- *  gp.subscribe(function(event) {
- *    console.log(event); // prints the button and joystick events
- *  })
- */
+
 class Gamepad {
+  /**
+   * Gamepad allows you to use an Xbox controller. It uses the browser Gamepad API,
+   * polling at 10Hz by default. Use `rtcbot.setGamepadRate` to change polling frequency.
+   *
+   * You must plug in the gamepad, and press a button on it for it to be recognized by the browser:
+   *
+   * .. code-block:: javascript
+   *
+   *  var gp = new rtcbot.Gamepad();
+   *  gp.subscribe(function(event) {
+   *    console.log(event); // prints the button and joystick events
+   *  })
+   */
   constructor() {
     this._subscription = console.log;
     gamepadHandler.addGamepad(this);

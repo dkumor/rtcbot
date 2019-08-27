@@ -192,6 +192,7 @@ class RTCConnection {
   /**
    * When initializing a connection, this response reads the remote response to an initial
    * description.
+   * 
    * @param {*} description
    */
   async setRemoteDescription(description) {

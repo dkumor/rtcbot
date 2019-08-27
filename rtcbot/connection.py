@@ -476,7 +476,7 @@ class RTCConnection(SubscriptionProducerConsumer):
     @property
     def audio(self):
         """
-        Convenience function - you can subscribe to it to get video frames once they show up
+        Convenience function - you can subscribe to it to get audio once a stream is received
         """
         return self._audioHandler
 
