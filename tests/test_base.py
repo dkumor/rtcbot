@@ -111,7 +111,7 @@ class TestThreadedClasses(aiounittest.AsyncTestCase):
         self.assertEqual(c.ready, True)
 
         # Have to sleep to give asyncio time to prepare the data
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(1)
 
         self.assertEqual(c.testQueue.get(), "test")
 
@@ -147,8 +147,8 @@ class TestThreadedClasses(aiounittest.AsyncTestCase):
         self.assertEqual(await p.get(), "test1")
 
         def pushsleep():
-            # Work around the lask of a timeout in testing p
-            time.sleep(0.1)
+            # Work around the lack of a timeout in testing p
+            time.sleep(1)
             p.testQueue.put("Ending")
 
         threading.Thread(target=pushsleep).run()
