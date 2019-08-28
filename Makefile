@@ -19,7 +19,7 @@ publish: dist phony
 	twine upload dist/*
 
 test: phony
-	pytest --cov=rtcbot
+	pytest --cov=rtcbot --timeout=20
 	cd js; npm run test
 
 docs: phony
