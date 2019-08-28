@@ -44,8 +44,9 @@ class ThreadedSubscriptionProducer(BaseSubscriptionProducer, threadedEventHandle
         while not self._shouldClose:
             # In real code, there should be a timeout in get to make sure _shouldClose is not True
             try:
-                self._put_nowait(self.testQueue.get(1))
-            except TimeoutError:
+                # WTF: why does timeout not work here?
+                self._put_nowait(self.testQueue.get(timeout=3))
+            except queue.Empty:
                 pass
         self.testResultQueue.put("<<END>>")
         self._setReady(False)
