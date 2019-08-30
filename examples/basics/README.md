@@ -96,6 +96,16 @@ The `put_nowait` function is then used to send the frame to the window where the
 
 These two functions form the core of RTCBot's abilities. Every producer of data (like `CVCamera`) has a `subscribe()` method, and every consumer of data (like `CVDisplay`) has a `put_nowait` method to insert data.
 
+```eval_rst
+.. note::
+    If you are using the official Raspberry Pi camera, you should replace CVCamera with PiCamera.
+
+.. warning::
+    CVDisplay does not work on Mac due to issues with threading in the display toolkit - if using a Mac, you'll have to
+    wait for the video streaming tutorial to view the video feed!
+
+```
+
 ## Subscriptions
 
 In RTCBot, a subscription is any object with a `put_nowait` method, and a `get` coroutine:

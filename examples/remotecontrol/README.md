@@ -40,7 +40,7 @@ async def index(request):
             <script src="/rtcbot.js"></script>
         </head>
         <body style="text-align: center;padding-top: 30px;">
-            <video autoplay playsinline></video> <audio autoplay></audio>
+            <video autoplay playsinline controls></video> <audio autoplay></audio>
             <p>
             Open the browser's developer tools to see console messages (CTRL+SHIFT+C)
             </p>
@@ -119,7 +119,7 @@ We now add keyboard support. This is done with the `rtcbot.Keyboard` javascript 
              <script src="/rtcbot.js"></script>
          </head>
          <body style="text-align: center;padding-top: 30px;">
-             <video autoplay playsinline></video> <audio autoplay></audio>
+             <video autoplay playsinline controls></video> <audio autoplay></audio>
              <p>
              Open the browser's developer tools to see console messages (CTRL+SHIFT+C)
              </p>
@@ -315,7 +315,7 @@ async def index(request):
             <script src="/rtcbot.js"></script>
         </head>
         <body style="text-align: center;padding-top: 30px;">
-            <video autoplay playsinline></video> <audio autoplay></audio>
+            <video autoplay playsinline controls></video> <audio autoplay></audio>
             <p>
             Open the browser's developer tools to see console messages (CTRL+SHIFT+C)
             </p>

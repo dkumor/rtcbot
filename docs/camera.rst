@@ -7,21 +7,18 @@ To use this API, you will need to either have OpenCV installed
 (for use with :class:`CVCamera` and :class:`CVDisplay`), have :mod:`picamera` installed to use :class:`PiCamera`.
 
 
-To install OpenCV on Ubuntu 18.04, use the following command::
+To install OpenCV on Ubuntu 18.04 or Raspbian Buster, use the following command::
 
     sudo apt-get install python3-opencv
 
-On raspbian or older ubuntu, you can install it with::
+On Raspbian Stretch or older Ubuntu, you can install it with::
 
     sudo apt-get install python-opencv
 
-If using windows, it is recommended that you use `Anaconda <https://www.anaconda.com/distribution/#download-section>`_, 
+If using Windows or Mac, it is recommended that you use `Anaconda <https://www.anaconda.com/distribution/#download-section>`_, 
 and install OpenCV from there.
 
-If on a Raspberry Pi, you don't need OpenCV at all to use the official Pi Camera. All you need to do is install
-the python package::
-
-    sudo pip3 install picamera
+If on a Raspberry Pi, you don't need OpenCV at all to use the official Pi Camera.
 
 CVCamera
 ++++++++++++++++
@@ -64,6 +61,9 @@ For example, the following code shows the video in black and white::
     finally:
         camera.close()
         display.close()
+
+.. warning::
+    There is currently an issue with threading in OpenCV that makes CVDisplay not work on Mac.
 
 PiCamera
 ++++++++++++++++

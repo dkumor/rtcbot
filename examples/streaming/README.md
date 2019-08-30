@@ -43,7 +43,7 @@ async def index(request):
             <script src="/rtcbot.js"></script>
         </head>
         <body style="text-align: center;padding-top: 30px;">
-            <video autoplay playsinline></video> <audio autoplay></audio>
+            <video autoplay playsinline controls></video> <audio autoplay></audio>
             <p>
             Open the browser's developer tools to see console messages (CTRL+SHIFT+C)
             </p>
@@ -128,7 +128,7 @@ All you need is to add a couple lines of code to the skeleton to get a fully-fun
              <script src="/rtcbot.js"></script>
          </head>
          <body style="text-align: center;padding-top: 30px;">
-             <video autoplay playsinline></video> <audio autoplay></audio>
+             <video autoplay playsinline controls></video> <audio autoplay></audio>
              <p>
              Open the browser's developer tools to see console messages (CTRL+SHIFT+C)
              </p>
@@ -175,6 +175,11 @@ One major difference between javascript and Python, is that the audio/video `sub
 video stream object. In Python, the same function would get called on each video frame.
 
 Also, remember to subscribe/put all subscriptions into `conn` _before_ initializing the connection with `getLocalDescription`. This is because `getLocalDescription` uses knowledge of which types of streams you want to send and receive to construct its offer and response.
+
+```eval_rst
+.. note::
+    In some cases you will need to click play in the browser before the video starts.
+```
 
 ## Adding Audio
 
@@ -257,7 +262,7 @@ async def index(request):
             <script src="/rtcbot.js"></script>
         </head>
         <body style="text-align: center;padding-top: 30px;">
-            <video autoplay playsinline></video> <audio autoplay></audio>
+            <video autoplay playsinline controls></video> <audio autoplay></audio>
             <p>
             Open the browser's developer tools to see console messages (CTRL+SHIFT+C)
             </p>

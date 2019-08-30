@@ -168,6 +168,10 @@ class PiCamera(CVCamera):
 class CVDisplay(ThreadedSubscriptionConsumer):
     """
     Displays the frames in an openCV `imshow` window
+
+    .. warning::
+        Due to an issue with `threading in OpenCV on Mac <https://github.com/opencv/opencv/issues/6039>`_,
+        CVDisplay does not work on Mac.
     """
 
     _log = logging.getLogger("rtcbot.CVDisplay")

@@ -22,9 +22,22 @@ The library is explained piece by piece in [the documentation](https://rtcbot.re
 
 ## Installing
 
+RTCBot relies on some Python libraries that will need to be compiled by pip, so
+you need to install their dependencies. The following commands will work on Ubuntu and Raspbian Buster:
+
+```bash
+sudo apt-get install build-essential python3-numpy python3-cffi python3-aiohttp \
+        libavformat-dev libavcodec-dev libavdevice-dev libavutil-dev \
+        libswscale-dev libswresample-dev libavfilter-dev libopus-dev \
+        libvpx-dev pkg-config libsrtp2-dev python3-opencv pulseaudio
 ```
-pip install rtcbot
+
+And then install rtcbot:
+```bash
+sudo pip3 install rtcbot
 ```
+
+For installation instructions for Windows and Mac, [refer to the documentation](https://rtcbot.readthedocs.io/en/latest/installing.html)
 
 ## Example
 
