@@ -11,7 +11,7 @@ The second part of the tutorial adds a neural network into the mix, which tries 
 
 ```eval_rst
 .. note::
-    While with a weak SBC like the Raspberry Pi there might be a non-negligible delay between sending a video frame and getting back a command, this is not a limitation of the approach, since it is possible to stream `video games with barely-noticeable lag <https://arstechnica.com/gaming/2019/03/googles-multiyear-quest-to-overcome-ids-stadia-streaming-skepticism/>`_. In particular, rtcbot currently cannot take advantage of the Pi's hardware acceleration, meaning that all video encoding is done in software, which ends up adding to video delay.
+    While with a Raspberry Pi there might be a non-negligible delay between sending a video frame and getting back a command, this is not a limitation of the approach, since it is possible to stream `video games with barely-noticeable lag <https://arstechnica.com/gaming/2019/03/googles-multiyear-quest-to-overcome-ids-stadia-streaming-skepticism/>`_. In particular, rtcbot currently cannot take advantage of the Pi's hardware acceleration, meaning that all video encoding is done in software, which ends up adding to video delay.
 ```
 
 ## Python to Python Streaming
@@ -137,6 +137,6 @@ This portion of the tutorial focuses on modifying the desktop code from the prev
 a neural network which is trained exploiting the computational power available on a desktop PC.
 
 This is an _advanced_ topic, requiring a working knowledge of machine learning basics. It is also assumed
-that you are using linux on your desktop, and that you have an nvidia graphics card compatible with [pytorch](https://pytorch.org). If you choose to attempt this part on a windows desktop or on a mac, be aware that you might run into some problems that might need a bit of googling skills to solve.
+that you are using linux on your desktop, and that you have an nvidia graphics card compatible with [pytorch](https://pytorch.org). If you choose to attempt this part on a windows desktop or on a mac, be aware that you might run into some problems that might require some googling skills to solve.
 
 ### Under Construction...

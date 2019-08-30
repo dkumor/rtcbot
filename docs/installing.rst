@@ -4,40 +4,53 @@ Installing RTCBot
 RTCBot uses some very powerful libraries, which can make it a bit difficult to install on some systems.
 
 
-Raspberry Pi
+Raspbian
 ++++++++++++++
 
-The raspberry pi does not have OpenCV available for python3, 
-meaning that RTCBot's CVCamera and CVDisplay will not be available unless you manually compile them.
-Thankfully, you can still use the official camera module, by installing picamera::
+RTCBot requires several dependencies which are best installed using apt-get::
 
-    sudo apt-get install python3-numpy
+    sudo apt-get install python3-numpy python3-cffi python3-aiohttp \
+        libavformat-dev libavcodec-dev libavdevice-dev libavutil-dev \
+        libswscale-dev libswresample-dev libavfilter-dev libopus-dev \
+        libvpx-dev pkg-config libsrtp2-dev python3-opencv pulseaudio
 
 Then, you can install rtcbot with pip::
 
     sudo pip3 install picamera rtcbot
 
-The installation will take a long time, since many of RTCBot's dependencies need to be compiled.
+.. warning::
+    These instructions were made with reference to Raspbian Buster on the Raspberry Pi 4.
+    Some things might work differently on older versions of raspbian.
 
-Linux
+Ubuntu
 +++++++++++
 
-Before starting, you will want to install OpenCV, numpy and ffmpeg::
+RTCbot requires several dependencies which are best installed using apt-get::
 
-    sudo apt-get install python3-numpy python3-opencv ffmpeg
+    sudo apt-get install python3-numpy python3-cffi python3-aiohttp \
+        libavformat-dev libavcodec-dev libavdevice-dev libavutil-dev \
+        libswscale-dev libswresample-dev libavfilter-dev libopus-dev \
+        libvpx-dev pkg-config libsrtp2-dev python3-opencv pulseaudio
 
-Then, you can install rtcbot using pip::
+Then, you can install rtcbot with pip::
 
-    pip3 install rtcbot
+    sudo pip3 install picamera rtcbot
 
 Windows
 +++++++++++
 
-To install on Windows, you will need to use Anaconda. With anaconda, install opencv, numpy, ...
+To install on Windows, you will want to use Anaconda `Anaconda <https://www.anaconda.com/distribution/#download-section>`_.
 
-Then ...
+.. note::
+    These instructions are incomplete. If you succeed in installing rtcbot 
+    on windows, please open a pull request with instructions!
 
 Mac
 +++++++++++
 
-On mac, follow the windows instructions - the library will only work through anaconda.
+To install on Mac, you will want to use Anaconda `Anaconda <https://www.anaconda.com/distribution/#download-section>`_.
+
+
+.. note::
+    These instructions are incomplete. If you succeed in installing rtcbot 
+    on mac, please open a pull request with instructions!

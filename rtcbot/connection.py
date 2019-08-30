@@ -1,4 +1,4 @@
-from aiortc import RTCPeerConnection, RTCSessionDescription
+from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, RTCIceServer
 import asyncio
 import logging
 import json
@@ -320,7 +320,8 @@ class ConnectionAudioHandler(SubscriptionProducerConsumer):
 class RTCConnection(SubscriptionProducerConsumer):
     _log = logging.getLogger("rtcbot.RTCConnection")
 
-    def __init__(self, defaultChannelOrdered=True, loop=None, rtcConfiguration=None):
+    def __init__(self, defaultChannelOrdered=True, loop=None, 
+            rtcConfiguration=RTCConfiguration([RTCIceServer(urls="stun:stun.l.google.com:19302")])):
         super().__init__(
             directPutSubscriptionType=asyncio.Queue,
             defaultSubscriptionType=asyncio.Queue,

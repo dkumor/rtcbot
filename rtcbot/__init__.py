@@ -8,3 +8,6 @@ from .arduino import SerialConnection
 from .subscriptions import *
 from .javascript import getRTCBotJS
 from .devices import *
+
+
+__version__="0.0.9"

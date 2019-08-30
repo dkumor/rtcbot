@@ -232,7 +232,7 @@ To understand what is happening in the above code, it is important to understand
 WebRTC's core goal is fast peer-to-peer communication between clients. An example of this is video chat. Suppose you and your friend
 both connect to a web server to talk with each other. The video from your friend's webcam first travels to the server, and then is forwarded from the server to you. This is not ideal - if the server is in another country, your video connection would have a lot of latency, since it needs to travel a large distance - even if you and your friend are connected to the same wifi!
 
-WebRTC fixes this by establishing a direct connection between you and your friend - with WebRTC, the video signal would never even leave your local network, giving high quality and very low latency communication. The remote server is only used to help create the connection. Furthermore, the protocol includes mechanisms for passing connections through firewalls, and other complex network configurations.
+WebRTC fixes this by trying to establish a direct connection between you and your friend - with WebRTC, the video signal would never even leave your local network, giving high quality and very low latency communication. The remote server is only used to help create the connection. Furthermore, the protocol includes mechanisms for passing connections through firewalls, and other complex network configurations.
 
 The above technology is unimportant to us at the moment, since we will connect directly to the server anyways (no intermediate hops), but will become relevant once we try controlling the robot over a 4G connection, where the server and peer become decoupled.
 
@@ -240,7 +240,7 @@ Even without using the above benefits, WebRTC is a better fit than something lik
 
 ### Connection Setup
 
-Due to all of the above benefits, establishing a WebRTC connection between a local device (such as your browser) and the remote device (robot) can be a bit involved. Three things need to happen:
+Unfortunately, establishing a WebRTC connection between a local device (such as your browser) and the remote device (robot) can be a bit involved. Three things need to happen:
 
 1. The local device prepares the type of data it needs to be able to send or accept (raw data, video, audio, etc)
 2. The local device needs to gather information about how others can connect to it, such that this data can be sent efficiently. For example, things on your local network could possibly talk with each other using local addresses, like `192.168.1.153`. Other times, they must go over the internet, where you have a different IP. The device does some setup, and gathers all the ways that the peer could connect to it. These candidate connection methods are called [ICE Candidates](https://developer.mozilla.org/en-US/docs/Web/API/WebRTC_API/Connectivity#ICE_candidates).
@@ -248,11 +248,11 @@ Due to all of the above benefits, establishing a WebRTC connection between a loc
 4. The remote device (robot) needs to do the same thing, sending back its own information.
 5. Finally, the two sides use this information to create a direct connection
 
-Steps 3 and 4 involve a "Signaling Server", which sends this info from one device to the other. For now, we won't separate out the signaling server from our python code. In this tutorial, we will set up a data channel between the server code and the browser's javascript.
+Steps 3 and 4 involve a "Signaling Server", which sends this info from one device to the other. Right now, we don't separate out the signaling server from our python code. That will come in a later tutorial.
 
 ## Sending JSON to Python and Back
 
-In the above example, we sent a string, one way: from the browser to Python. In the interest of completeness, we can modify the
+In the previous example, we sent a string, one way: from the browser to Python. In the interest of completeness, we can modify the
 example given above to both send and receive JSON on button press:
 
 The first modification we make is subscribing to incoming messages in javascript,

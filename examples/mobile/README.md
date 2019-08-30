@@ -10,13 +10,13 @@ Rather than connecting to the robot, we will have two separate Python programs. 
 ```
 
 In a previous tutorial, we developed a connection that streamed video to the browser. This tutorial will implement exactly the same functionality,
-but with a robot on a remote connection.
+but with the robot on a remote connection.
 
 The browser-side code will remain unchanged - all of the work here will be in Python.
 
 ## Server Code
 
-Most of the server code is identical. The only difference is that we set up a listener at `/ws`, which will establish a websocket connection with the robot:
+Most of the server code is unchanged. The only difference is that we set up a listener at `/ws`, which will establish a websocket connection with the robot:
 
 ```python
 ws = None # Websocket connection to the robot
@@ -140,7 +140,7 @@ web.run_app(app)
 
 ## Remote Code
 
-In this tutorial, we will just run both server and robot on the local machine. The same code will work over the internet simply by setting the right IP for the robot to connect to. The robot connects to the server with a websocket, and waits for the message that will allow it to initialize its WebRTC connection.
+In this tutorial, we will just run both server and robot on the local machine. The robot connects to the server with a websocket, and waits for the message that will allow it to initialize its WebRTC connection.
 
 ```python
 import asyncio
@@ -171,12 +171,71 @@ finally:
 
 With these two pieces of code, you first start the server, then start the robot, and finally open `http://localhost:8080` in the browser to view a video stream coming directly from the robot, even if the robot has an unknown IP.
 
+## If it doesn't work over 4G
+
+The above example should work for most people. However, some mobile network operators perform routing that disallows creating a direct WebRTC connection to a mobile device over 4G. If this is your situation, you need to use what is called a TURN server, which will forward data between the browser and robot.
+
+```eval_rst
+.. note::
+    You can check if your mobile operator allows such connections by using your phone to create a wifi hotspot, to which you can connect your robot. If video streaming works with the code above, you can ignore this section!
+```
+
+```eval_rst
+.. warning::
+    Because a TURN server essentially serves as a proxy through which an entire WebRTC connection is routed, it can send and receive quite a bit of data - make sure that you don't
+    exceed your download and upload limits!
+```
+
+While installing and configuring [coTURN](https://github.com/coturn/coturn) on linux is recommended for permanent setups,
+for simplicity we will run the [Pion TURN server](https://github.com/pion/turn) on the same computer that is running our server code.
+
+The Pion server is easy to set up on Windows,Mac and Linux - all you need to do is [download the executable](https://github.com/pion/turn/releases/tag/1.0.3), and run it from the command line as shown.
+
+**Linux/Mac**:
+```bash
+chmod +x ./simple-turn # allow executing the downloaded file
+export USERS='myusername=mypassword'
+export REALM=my.server.ip
+export UDP_PORT=3478
+./simple-turn-linux-amd64 # simple-turn-darwin-amd64 if on Mac
+```
+
+**Windows**: You can run the following from powershell:
+```powershell
+$env:USERS = "myusername=mypassword"
+$env:REALM = "my.server.ip"
+$env:UDP_PORT = 3478
+./simple-turn-windows-amd64.exe
+```
+
+With the server running, you will need to let both Python and Javascript know about it when creating your `RTCConnection`:
+```python
+from aiortc import RTCConfiguration, RTCIceServer
+
+myConnection = RTCConnection(rtcConfiguration=RTCConfiguration([
+                    RTCIceServer(urls="stun:stun.l.google.com:19302"),
+                    RTCIceServer(urls="turn:my.server.ip:3478",
+                        username="myusername",credential="mypassword")
+                ]))
+```
+
+```javascript
+var conn = new rtcbot.RTCConnection(rtcConfiguration=[
+                    { urls: ["stun:stun.l.google.com:19302"] },
+                    { urls: ["turn:my.server.ip:3478?transport=udp", 
+                        username: "myusername", credential: "mypassword"], },
+                ]);
+```
+
+With the above code, you should be able to stream video to your browser using 4G, even if your mobile operator disallows direct connections.
+
+
 ## Summary
 
-This tutorial split up the server and robot code into distinct pieces. Also introduced was rtcbot's websocket wrapper, allowing you to easily establish a data-only connection.
+This tutorial split up the server and robot code into distinct pieces. Also introduced was rtcbot's websocket wrapper, allowing you to easily establish a data-only connection. Finally, TURN servers were introduced, and instructions were given on how to set one up if direct connections fail.
 
 ## Extra Notes
 
 Be aware that throughout these tutorials, all error handling and robustness was left out in the interest of
-clarity of the fundamental program flow. In reality, you will probably want to make sure that the connection
+clarity in the fundamental program flow. In reality, you will probably want to make sure that the connection
 did not have an error, and add the ability to connect and disconnect multiple times.

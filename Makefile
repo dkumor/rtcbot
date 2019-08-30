@@ -17,6 +17,7 @@ dist: js phony
 publish: dist phony
 	cd js; npm publish
 	twine upload dist/*
+	anaconda upload dist/*.tar.gz
 
 test: phony
 	pytest --cov=rtcbot --timeout=20
