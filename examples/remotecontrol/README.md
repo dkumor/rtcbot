@@ -214,7 +214,7 @@ key press {'value': -0.8708761930465698, 'type': 'axis2'}
 key press {'value': -0.7945494055747986, 'type': 'axis2'}
 ```
 
-The controller's buttons give boolean values, and the joysticks give float values between -1 and 1. By default, the controller is polled at 10Hz as not to overwhelm an embedded computer like the Pi with tons of data each time a joystick is moved.
+The controller's buttons give boolean values, and the joysticks give float values between -1 and 1. By default, the controller is polled at 10Hz as not to overwhelm a Pi 3 with tons of data each time a joystick is moved.
 
 ## Remote Control
 

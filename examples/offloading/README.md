@@ -131,12 +131,3 @@ Control message: {'timestamp': 1553379217.004892, 'code': 'ABS_X', 'state': -125
    The output for the `Gamepad` object is currently different in Javascript and in Python. Make sure you don't mix them up!
 ```
 
-## Machine Learning a Controller
-
-This portion of the tutorial focuses on modifying the desktop code from the previous portion to include
-a neural network which is trained exploiting the computational power available on a desktop PC.
-
-This is an _advanced_ topic, requiring a working knowledge of machine learning basics. It is also assumed
-that you are using linux on your desktop, and that you have an nvidia graphics card compatible with [pytorch](https://pytorch.org). If you choose to attempt this part on a windows desktop or on a mac, be aware that you might run into some problems that might require some googling skills to solve.
-
-### Under Construction...

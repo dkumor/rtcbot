@@ -94,7 +94,7 @@ The `camera.subscribe` function allows you to subscribe to video frames incoming
 firing the `onFrame` function 30 times a second with [numpy](https://en.wikipedia.org/wiki/NumPy) arrays containing BGR images captured by the camera.
 The `put_nowait` function is then used to send the frame to the window where the image is displayed.
 
-These two functions form the core of RTCBot's abilities. Every producer of data (like `CVCamera`) has a `subscribe()` method, and every consumer of data (like `CVDisplay`) has a `put_nowait` method to insert data.
+These two functions are part of RTCBot's core abilities. Every producer of data (like `CVCamera`) has a `subscribe()` method, and every consumer of data (like `CVDisplay`) has a `put_nowait` method to insert data.
 
 ```eval_rst
 .. note::
@@ -108,19 +108,25 @@ These two functions form the core of RTCBot's abilities. Every producer of data 
 
 ## Subscriptions
 
-In RTCBot, a subscription is any object with a `put_nowait` method, and a `get` coroutine:
+Using a callback function with the `subscribe` method is not the only way to 
+get data out of a data-producing object. The `subscribe` method is also able
+to create what is called a `subscription`.
+
+To understand subscriptions, let's take a quick detour to python Queues:
 
 ```python
 import asyncio
 
-# An asyncio Queue is a subscription
+# An asyncio Queue has put_nowait and get coroutine
 q = asyncio.Queue()
 
+# Sends data each second
 async def sender():
     while True:
         await asyncio.sleep(1)
         q.put_nowait("hi!")
 
+# Receives the data
 async def receiver():
     while True:
         data = await q.get()
@@ -131,10 +137,9 @@ asyncio.ensure_future(receiver())
 asyncio.get_event_loop().run_forever()
 ```
 
-Here, the `sender` function sends data, and the `receiver` awaits for incoming data, and prints it.
+Here, the `sender` function sends data, and the `receiver` awaits for incoming data, and prints it. Notice how the queue had a `get` coroutine from which data could be awaited.
 
-In the example where we viewed a video feed, `subscribe` was used as a decorator for a callback function.
-This is just a small part of the actual power of the `subscribe` method. When run without an argument, it actually returns a subscription, which `CVCamera` automatically keeps updated with new video frames as they come in:
+We can use the `subscribe` method in a similar way to the above code snippet. When run without an argument, `subscribe` actually returns a subscription, which `CVCamera` automatically keeps updated with new video frames as they come in:
 
 ```python
 import asyncio
@@ -200,7 +205,7 @@ finally:
 
 ## Generalizing to Audio
 
-The above code examples created a video stream, and displayed it in a window. RTCBot uses _exactly the same_ API for **everything**. This means that we can trivially add audio to the previous example:
+The above code examples all created a video stream, and displayed it in a window. RTCBot uses _exactly the same_ API for **everything**. This means that we can trivially add audio to the previous example:
 
 ```python
 import asyncio
@@ -223,7 +228,7 @@ finally:
     speaker.close()
 ```
 
-With this example, a video stream should be displayed in a window, and all microphone input should be playing in your headphones (or speakers).
+Here, a video stream should be displayed in a window, and all microphone input should be playing in your headphones (or speakers).
 
 ## Summary
 
