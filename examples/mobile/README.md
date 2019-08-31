@@ -193,7 +193,7 @@ The Pion server is easy to set up on Windows,Mac and Linux - all you need to do 
 
 **Linux/Mac**:
 ```bash
-chmod +x ./simple-turn # allow executing the downloaded file
+chmod +x ./simple-turn-linux-amd64 # allow executing the downloaded file
 export USERS='myusername=mypassword'
 export REALM=my.server.ip
 export UDP_PORT=3478

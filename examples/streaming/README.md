@@ -183,7 +183,7 @@ Also, remember to subscribe/put all subscriptions into `conn` _before_ initializ
 
 ## Adding Audio
 
-Now let's add an audio stream. Be aware that a Pi 3 with USB microphone might struggle a bit sending both audio and video at the same time. Try the code on your desktop/laptop first to make sure it works before attempting use with the Raspberry Pi.
+Now let's add an audio stream. Be aware that a Pi 3 with USB microphone might struggle a bit sending both audio and video at the same time. Try the code on your desktop/laptop or a Pi 4 first to make sure it works before attempting use with the Pi 3.
 
 Based on what you know of RTCBot so far, and knowing that you can use a microphone with the `Microphone` class, do you think you can figure out audio just looking at the video code above?
 

@@ -24,7 +24,7 @@ Then, you can complete the installation with pip::
 
 .. note::
     It is recommended that you use the Pi 4 with RTCBot. While it was tested to work down to the Raspberry Pi 3B, it was observed to have
-    extra latency, since the CPU had difficulty keeping up with encoding the video stream.
+    extra latency, since the CPU had difficulty keeping up with encoding the video stream while processing controller input.
     This is because RTCBot currently cannot take advantage of the Pi's hardware acceleration, 
     meaning that all video encoding is done in software.
 

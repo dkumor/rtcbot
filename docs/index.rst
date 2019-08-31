@@ -9,8 +9,18 @@ all the way to a powerful system that offloads complex computation to a desktop 
 
 All communication happens through `WebRTC <https://en.wikipedia.org/wiki/WebRTC>`_, 
 using Python 3's asyncio and the wonderful `aiortc <https://aiortc.readthedocs.io/en/latest/index.html>`_ library,
-meaning that your robot can be controlled with low latency both from the browser and through Python,
+meaning that your robot can be controlled both from the browser and through Python,
 even when it is not connected to your local network.
+
+.. raw:: html
+
+    <h2><a href="examples/basics/README.html"> Start The Tutorials</a></h2>
+    <video playsinline loop autoplay muted style="max-width: 100%; margin-bottom: 10px; margin-top: 10px;">
+        <source src="_static/control_example.m4v" type="video/mp4">
+    </video>
+
+Documentation
+================
 
 .. toctree::
    :maxdepth: 2
