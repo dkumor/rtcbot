@@ -171,6 +171,68 @@ finally:
 
 With these two pieces of code, you first start the server, then start the robot, and finally open `http://localhost:8080` in the browser to view a video stream coming directly from the robot, even if the robot has an unknown IP.
 
+
+## rtcbot.dev
+
+The above example requires you to have your own internet-accessible server at a known IP address to set up the connection. The server's only real purpose is to help *establish* a connection - once the connection is established, it does not do anything.
+
+For this reason, I am hosting a free testing server online at `https://rtcbot.dev` that performs the equivalent of the following operation from the above server code:
+
+```python
+@routes.get("/ws")
+async def websocket(request):
+    global ws
+    ws = Websocket(request)
+    print("Robot Connected")
+    await ws  # Wait until the websocket closes
+    print("Robot disconnected")
+    return ws.ws
+
+# Called by the browser to set up a connection
+@routes.post("/connect")
+async def connect(request):
+    global ws
+    if ws is None:
+        raise web.HTTPInternalServerError("There is no robot connected")
+    clientOffer = await request.json()
+    # Send the offer to the robot, and receive its response
+    ws.put_nowait(clientOffer)
+    robotResponse = await ws.get()
+    return web.json_response(robotResponse)
+```
+
+Since the server at `rtcbot.dev` is open to anyone, instead of `/ws` and `/connect`, you need to choose some random sequence of letters and numbers that will identify your connection, for example `myRandomSequence11`.
+
+Once you have chosen your sequence, you can both connect your websocket and POST to `https://rtcbot.dev/myRandomSequence11`:
+
+```eval_rst
+.. note::
+    If you open https://rtcbot.dev/myRandomSequence11 in your browser, you can see if your remote code is connected with a websocket, and optionally open a video connection.
+```
+
+When using `rtcbot.dev`, the remote connection code becomes:
+
+```python
+async def connect():
+    ws = Websocket("https://rtcbot.dev/myRandomSequence11")
+    remoteDescription = await ws.get()
+    robotDescription = await conn.getLocalDescription(remoteDescription)
+    ws.put_nowait(robotDescription)
+    print("Started WebRTC")
+    await ws.close()
+```
+
+and the local browser's connection code becomes:
+
+```js
+let response = await fetch("https://rtcbot.dev/myRandomSequence11", {
+    method: "POST",
+    cache: "no-cache",
+    body: JSON.stringify(offer)
+});
+```
+
+
 ## If it doesn't work over 4G
 
 The above example should work for most people. However, some mobile network operators perform routing that disallows creating a direct WebRTC connection to a mobile device over 4G. If this is your situation, you need to use what is called a TURN server, which will forward data between the browser and robot.

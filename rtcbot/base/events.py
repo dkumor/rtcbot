@@ -40,10 +40,10 @@ class baseEventHandler:
 
             if not myobject.ready:
                 print("Not ready to process data")
-        
+
         This property is offered for convenience, but if you want to be notifed when ready to process data, you will want to use the :func:`onReady`
         function, which will allow you to set up a callback/coroutine to wait until initialized.
-        
+
         note:
             You usually don't need to check the `ready` state, since all functions for getting/putting data will work even if the class is still starting up in the background.
         """
@@ -75,29 +75,28 @@ class baseEventHandler:
 
     def _setReady(self, value=True):
         """
-        Sets the ready to `true`, and fires all subscriptions created with :func:`onReady`.
+        Sets the ready to a given value, and fires all subscriptions created with :func:`onReady`.
         Call this when your producer/consumer is fully initialized.
 
         Warning:
             Only call this if you are subclassing :class:`baseEventHandler`.
         """
         self.__logger.debug("Setting ready to %s", value)
-        if value:
-            self.__readyEvent.set()
-            for subscription in self.__onReady:
-                if callable(getattr(subscription, "put_nowait", None)):
-                    subscription.put_nowait(None)
-                elif inspect.iscoroutinefunction(subscription):
-                    asyncio.ensure_future(subscription())
-                else:
-                    subscription()
-        else:
+        self.__readyEvent.set()
+        for subscription in self.__onReady:
+            if callable(getattr(subscription, "put_nowait", None)):
+                subscription.put_nowait(None)
+            elif inspect.iscoroutinefunction(subscription):
+                asyncio.ensure_future(subscription())
+            else:
+                subscription()
+        if not value:
             self.__readyEvent.clear()
 
     def _setError(self, value):
         """
         Sets the error state of the class to an error that was caught while processing data.
-        
+
         After the error is set, the class is assumed to be in a closed state,
         meaning that any background processes either crashed or were shut down.
 
@@ -127,7 +126,7 @@ class baseEventHandler:
             @myobj.onReady
             def readyCallback():
                 print("Ready!)
-        
+
         The function works in exactly the same way as a :func:`subscribe`, meaning that you can
         pass it a coroutine, or even await it directly::
 
@@ -178,7 +177,7 @@ class baseEventHandler:
             @myobj.onClose
             def closeCallback():
                 print("Closed!)
-        
+
         Be aware that this is equivalent to explicitly awaiting the object::
 
             await myobj

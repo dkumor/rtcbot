@@ -320,8 +320,8 @@ class ConnectionAudioHandler(SubscriptionProducerConsumer):
 class RTCConnection(SubscriptionProducerConsumer):
     _log = logging.getLogger("rtcbot.RTCConnection")
 
-    def __init__(self, defaultChannelOrdered=True, loop=None, 
-            rtcConfiguration=RTCConfiguration([RTCIceServer(urls="stun:stun.l.google.com:19302")])):
+    def __init__(self, defaultChannelOrdered=True, loop=None,
+                 rtcConfiguration=RTCConfiguration([RTCIceServer(urls="stun:stun.l.google.com:19302")])):
         super().__init__(
             directPutSubscriptionType=asyncio.Queue,
             defaultSubscriptionType=asyncio.Queue,
@@ -380,12 +380,14 @@ class RTCConnection(SubscriptionProducerConsumer):
         # Before starting init, we create a default data channel for the connection
         self._log.debug("Setting up default data channel")
         channel = DataChannel(
-            self._rtc.createDataChannel("default", ordered=self._defaultChannelOrdered)
+            self._rtc.createDataChannel(
+                "default", ordered=self._defaultChannelOrdered)
         )
         # Subscribe the default channel directly to our own inputs and outputs.
         # We have it listen to our own self._get, and write to our self._put_nowait
         channel.putSubscription(NoClosedSubscription(self._get))
         channel.subscribe(self._put_nowait)
+        channel.onReady(lambda: self._setReady(channel.ready))
         self._dataChannels[channel.name] = channel
 
         # Make sure we offer to receive video and audio if if isn't set up yet
@@ -421,6 +423,7 @@ class RTCConnection(SubscriptionProducerConsumer):
             # We have it listen to our own self._get, and write to our self._put_nowait
             channel.putSubscription(NoClosedSubscription(self._get))
             channel.subscribe(self._put_nowait)
+            channel.onReady(lambda: self._setReady(channel.ready))
 
             # Set the default channel
             self._defaultChannel = channel
@@ -509,4 +512,3 @@ class RTCConnection(SubscriptionProducerConsumer):
         what is going on
         """
         self.put_nowait(msg)
-

@@ -42,30 +42,34 @@ class Websocket(SubscriptionProducerConsumer):
         asyncio.ensure_future(self._wsSender(url_or_request))
 
     async def _wsSender(self, url_or_request):
-        if isinstance(url_or_request, str):
-            # Connect to a remote websocket
-            self._client = aiohttp.ClientSession(loop=self._loop)
-            self.ws = await self._client.ws_connect(url_or_request)
-        else:
-            # Handle an incoming websocket as server software.
-            self.ws = web.WebSocketResponse(autoclose=False)
-            await self.ws.prepare(url_or_request)
+        try:
+            if isinstance(url_or_request, str):
+                # Connect to a remote websocket
+                self._client = aiohttp.ClientSession(loop=self._loop)
+                self.ws = await self._client.ws_connect(url_or_request)
+            else:
+                # Handle an incoming websocket as server software.
+                self.ws = web.WebSocketResponse(autoclose=False)
+                await self.ws.prepare(url_or_request)
 
-        self._log.debug("Connection established")
-        # Create a separate coroutine for sending messages
-        asyncio.ensure_future(self._wsReceiver())
+            self._log.debug("Connection established")
+            # Create a separate coroutine for sending messages
+            asyncio.ensure_future(self._wsReceiver())
 
-        # And send out messages
-        while not self._shouldClose:
-            try:
-                msg = await self._get()
-                if self._json:
-                    msg = json.dumps(msg)
-                self._log.debug("Sending message %s", msg)
-                await self.ws.send_str(msg)
-            except SubscriptionClosed:
-                break
-        self._log.debug("Stopping websocket sender")
+            # And send out messages
+            while not self._shouldClose:
+                try:
+                    msg = await self._get()
+                    if self._json:
+                        msg = json.dumps(msg)
+                    self._log.debug("Sending message %s", msg)
+                    await self.ws.send_str(msg)
+                except SubscriptionClosed:
+                    break
+            self._log.debug("Stopping websocket sender")
+        except Exception as e:
+            self._setError(e)
+            self._setReady(False)
 
     async def _wsReceiver(self):
         # Once this coroutine starts, fire the ready event
@@ -89,6 +93,8 @@ class Websocket(SubscriptionProducerConsumer):
             elif msg.type == aiohttp.WSMsgType.ERROR:
                 self._setError(self.ws.exception())
                 break
+            elif msg.type == aiohttp.WSMsgType.CLOSE:
+                break
             if self._shouldClose:
                 break
         self._log.debug("Stopping websocket receiver")
@@ -106,7 +112,8 @@ class Websocket(SubscriptionProducerConsumer):
     def close(self):
         if self.ws is not None:
             if self._loop.is_running():
-                self._log.debug("Loop is running - close will return a future!")
+                self._log.debug(
+                    "Loop is running - close will return a future!")
                 return asyncio.ensure_future(self._clientClose())
             else:
                 self._loop.run_until_complete(self._clientClose())
