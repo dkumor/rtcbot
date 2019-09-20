@@ -6,7 +6,7 @@ Rather than connecting to the robot, we will have two separate Python programs. 
 
 ```eval_rst
 .. note::
-    The server must be accessible from the internet. This might involve a bit of configuration in your router settings. You can also use a server hosted by a cloud company, such as a virtual machine on DigitalOcean.
+    The server must be accessible from the internet. Running your own server might involve a bit of configuration in your router settings or setup of a cloud server, such as a virtual machine on DigitalOcean. You can also use the provided server at https://rtcbot.dev to help establish connections (see below).
 ```
 
 In a previous tutorial, we developed a connection that streamed video to the browser. This tutorial will implement exactly the same functionality,
@@ -140,7 +140,7 @@ web.run_app(app)
 
 ## Remote Code
 
-In this tutorial, we will just run both server and robot on the local machine. The robot connects to the server with a websocket, and waits for the message that will allow it to initialize its WebRTC connection.
+For simplicity, we will just run both server and robot on the local machine. The robot connects to the server with a websocket, and waits for the message that will allow it to initialize its WebRTC connection.
 
 ```python
 import asyncio
@@ -174,7 +174,7 @@ With these two pieces of code, you first start the server, then start the robot,
 
 ## rtcbot.dev
 
-The above example requires you to have your own internet-accessible server at a known IP address to set up the connection. The server's only real purpose is to help *establish* a connection - once the connection is established, it does not do anything.
+The above example requires you to have your own internet-accessible server at a known IP address to set up the connection, if your remote code is not on your local network. The server's only real purpose is to help *establish* a connection - once the connection is established, it does not do anything.
 
 For this reason, I am hosting a free testing server online at `https://rtcbot.dev` that performs the equivalent of the following operation from the above server code:
 
@@ -231,6 +231,7 @@ let response = await fetch("https://rtcbot.dev/myRandomSequence11", {
     body: JSON.stringify(offer)
 });
 ```
+With `rtcbot.dev`, you no longer need your local server code to run websockets or a connection service. Its only purpose is to give the browser the html and javascript necessary to establish a connection. We will get rid of the browser entirely in the next tutorial.
 
 
 ## If it doesn't work over 4G

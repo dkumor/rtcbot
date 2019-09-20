@@ -8,7 +8,7 @@ conn = RTCConnection()
 
 
 async def connect():
-    ws = Websocket("http://localhost:8080/test1")
+    ws = Websocket("https://rtcbot.dev/test1")
     await ws.onReady()
     if ws.error is not None:
         print("Had error", ws.error)
