@@ -8,7 +8,7 @@ with other components of rtcbot.
 
 The library is made up of two objects: a :class:`Speaker` and :class:`Microphone`. 
 The Microphone gathers audio at 48000 samples per second, and gives the data in chunks of 1024 samples.
-The data is returned as a numpy array of shape :code:`(channels,samples)`.
+The data is returned as a numpy array of shape :code:`(samples,channels)`.
 
 The speaker performs the reverse operation: it is given numpy arrays containing audio samples, and it plays them
 on the computer's default audio output.

@@ -1,4 +1,5 @@
 import asyncio
+import concurrent.futures
 import logging
 import threading
 
@@ -111,9 +112,9 @@ class ThreadedSubscriptionConsumer(BaseSubscriptionConsumer, threadedEventHandle
             timedout = False
             try:
                 return self._getTask.result(1)
-            except asyncio.CancelledError:
+            except (asyncio.CancelledError, concurrent.futures.CancelledError):
                 self.__sclog.debug("Subscription cancelled - checking for new tasks")
-            except asyncio.TimeoutError:
+            except (asyncio.TimeoutError, concurrent.futures.TimeoutError):
                 self.__sclog.debug("No incoming data for 1 second...")
                 timedout = True
             except SubscriptionClosed:

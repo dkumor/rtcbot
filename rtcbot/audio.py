@@ -67,7 +67,7 @@ class Microphone(ThreadedSubscriptionProducer):
                 try:
                     # TODO: Perhaps some way to time out this command if something froze?
                     audioData = recorder.record(self._blocksize)
-                    self._put_nowait(np.transpose(audioData))
+                    self._put_nowait(audioData)
                 except:
                     self._log.exception("Error while trying to record audio")
         self._setReady(False)
@@ -102,9 +102,6 @@ class Speaker(ThreadedSubscriptionConsumer):
                 try:
                     data = self._get()
                     self._log.debug("Received sample shape %s", data.shape)
-                    if data.ndim > 1:
-                        # we have channelxsamples but want samplesxchannels
-                        data = np.transpose(data)
                     player.play(data)
                 except SubscriptionClosed:
                     break

@@ -1,11 +1,11 @@
 
-from aiortc import VideoStreamTrack, AudioStreamTrack
-
 from aiortc.mediastreams import (
     MediaStreamError,
     AUDIO_PTIME,
     VIDEO_CLOCK_RATE,
     VIDEO_TIME_BASE,
+    AudioStreamTrack,
+    VideoStreamTrack
 )
 from av import VideoFrame, AudioFrame
 
@@ -42,7 +42,7 @@ class _audioSenderTrack(AudioStreamTrack):
     ):
         super().__init__()
         self._audioSubscription = RebatchSubscription(
-            int(AUDIO_PTIME * sampleRate), axis=-1, subscription=audioSubscription
+            int(AUDIO_PTIME * sampleRate), axis=0, subscription=audioSubscription
         )
         self._sampleRate = sampleRate
         self._startTime = None
@@ -80,11 +80,9 @@ class _audioSenderTrack(AudioStreamTrack):
         # and convert the data:
         # https://github.com/jlaine/aiortc/blob/master/aiortc/codecs/opus.py
         # We therefore force a conversion to 16 bit integer:
-
         data = (np.clip(data, -1, 1) * 32768).astype(np.int16)
-
         new_frame = AudioFrame.from_ndarray(
-            data, format="s16", layout=str(data.shape[0]) + "c"
+            data.reshape(1,-1), format="s16", layout=str(data.shape[1]) + "c"
         )
 
         # Use the sample rate for the base clock
@@ -105,10 +103,10 @@ class _audioSenderTrack(AudioStreamTrack):
         # we should have seen so far
 
         new_frame.pts = self._sampleNumber
-        self._sampleNumber += data.shape[1]
+        self._sampleNumber += data.shape[0]
 
         perfectSampleNumber = (
-            int((time.time() - self._startTime) * self._sampleRate) + data.shape[1]
+            int((time.time() - self._startTime) * self._sampleRate) + data.shape[0]
         )
         # print(perfectSampleNumber - self._sampleNumber)
         if self._canSkip:
@@ -119,7 +117,7 @@ class _audioSenderTrack(AudioStreamTrack):
                 self._log.warn(
                     "Received audio is over 1 second behind optimal timestamp! Skipping audio forward! Use canSkip=False to disable this correction"
                 )
-                new_frame.pts = perfectSampleNumber - data.shape[1]
+                new_frame.pts = perfectSampleNumber - data.shape[0]
 
         if perfectSampleNumber + self._sampleRate * 2 < self._sampleNumber:
             # If the audio stream is over 2 seconds ahead, we wait 1 second before continuing
@@ -278,12 +276,7 @@ class AudioReceiver(BaseSubscriptionProducer):
                     "Incoming audio frame's data type unsupported: %s", audioFrame
                 )
             else:
-                data = (
-                    np.transpose(np.reshape(data, (audioFrame.samples, -1))).astype(
-                        np.float
-                    )
-                    / 32768
-                )
+                data = np.reshape(data, (audioFrame.samples, -1)).astype(np.float) / 32768
                 self._put_nowait(data)
 
             # Get the next frame

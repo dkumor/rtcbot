@@ -179,21 +179,21 @@ class DelayedSubscription:
 class RebatchSubscription:
     """
     In certain cases, data comes with a suboptimal batch size. For example,
-    audio coming from an `RTCConnection` is always of shape `(2,960)`, with 2 channels,
+    audio coming from an `RTCConnection` is always of shape `(960,2)`, with 2 channels,
     and 960 samples per batch. This subscription allows you to change the frame size
     by mixing and matching batches. For example::
 
-        s = RebatchSubscription(samples=1024,axis=1)
-        s.put_nowait(np.zeros((2,960)))
+        s = RebatchSubscription(samples=1024,axis=0)
+        s.put_nowait(np.zeros((960,2)))
 
         # asyncio.TimeoutError - the RebatchSubscription does 
         # not have enough data to create a batch of size 1024
         rebatched = await asyncio.wait_for(s.get(),timeout=5)
 
         # After adding another batch of 960, get returns a frame of goal shape
-        s.put_nowait(np.zeros((2,960)))
+        s.put_nowait(np.zeros((960,2)))
         rebatched = await s.get()
-        print(rebatched.shape) # (2,1024)
+        print(rebatched.shape) # (1024,2)
 
     The RebatchSubscription takes samples from the second data frame's dimension 1
     to create a new batch of the correct size.
