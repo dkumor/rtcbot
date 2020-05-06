@@ -45,7 +45,7 @@ async def queueTimeout(ws):
 async def postDescription(request):
     cid = request.match_info['cid']
     # We have an active websocket! let's send the description
-    content = await request.content.read(MSG_MAX)
+    content = await request.content.read()
     if not cid in websockets:
         return web.HTTPNotFound(text="No connection is active here")
     q = asyncio.Queue(1)
@@ -144,6 +144,6 @@ async def guiHandler(request):
     </html>
     """ % (cid, cid, cid, cid))
 
-app = web.Application()
+app = web.Application(client_max_size=MSG_MAX)
 app.add_routes(routes)
 web.run_app(app, port=1452)
