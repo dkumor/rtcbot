@@ -2,10 +2,12 @@ import asyncio
 import logging
 import time
 import numpy as np
+import queue
+import threading
 
 from .base import (
     ThreadedSubscriptionProducer,
-    ThreadedSubscriptionConsumer,
+    BaseSubscriptionConsumer,
     SubscriptionClosed,
 )
 from .subscriptions import MostRecentSubscription
@@ -165,7 +167,7 @@ class PiCamera(CVCamera):
         self._log.info("Closed camera capture")
 
 
-class CVDisplay(ThreadedSubscriptionConsumer):
+class CVDisplay(BaseSubscriptionConsumer):
     """
     Displays the frames in an openCV `imshow` window
 
@@ -175,29 +177,46 @@ class CVDisplay(ThreadedSubscriptionConsumer):
     """
 
     _log = logging.getLogger("rtcbot.CVDisplay")
-    __windowNameIterator = 1
+    _windowNameIterator = 1
+
+    # To allow multiple CVDisplays, all of them must be managed from a single thread
+    _mainThread = None
+    _mainQueue = queue.Queue()
 
     def __init__(self, name=None, loop=None):
+        if CVDisplay._mainThread is None:
+            CVDisplay._mainThread = threading.Thread(target=self._consumer)
+            CVDisplay._mainThread.daemon = True
+            CVDisplay._mainThread.start()
+
         self._name = name
         if self._name is None:
-            self._name = str(self.__windowNameIterator)
-            self.__windowNameIterator += 1
-        super().__init__(MostRecentSubscription, self._log, loop=loop)
+            self._name = str(CVDisplay._windowNameIterator)
+            CVDisplay._windowNameIterator += 1
+        super().__init__(MostRecentSubscription, self._log)
 
-    def _consumer(self):
+        asyncio.ensure_future(self._queueWriter())
+
+    async def _queueWriter(self):
+        self._setReady(True)
+        while not self._shouldClose:
+            try:
+                data = await self._get()
+                self._mainQueue.put_nowait({"name": self._name, "frame": data})
+            except SubscriptionClosed:
+                pass
+        self._mainQueue.put_nowait({"name": self._name, "frame": None})
+
+    @staticmethod
+    def _consumer():
         import cv2
 
-        self._setReady(True)
-        try:
-            while not self._shouldClose:
-                frame = self._get()
-                cv2.imshow(self._name, frame)
-                if cv2.waitKey(1) == 27:
-                    self._setError("ESCAPE_PRESSED")
-                    break  # esc to quit
-        except SubscriptionClosed:
-            pass
-        self._setReady(False)
-        cv2.destroyWindow(self._name)
-        self._log.debug("Ended video display")
+        CVDisplay._log.debug("Started Video Display Thread")
 
+        while True:
+            data = CVDisplay._mainQueue.get()
+            if data["frame"] is None:
+                cv2.destroyWindow(data["name"])
+            else:
+                cv2.imshow(data["name"], data["frame"])
+            cv2.waitKey(1)
