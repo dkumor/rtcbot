@@ -1,4 +1,9 @@
-from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, RTCIceServer
+from aiortc import (
+    RTCPeerConnection,
+    RTCSessionDescription,
+    RTCConfiguration,
+    RTCIceServer,
+)
 import asyncio
 import logging
 import json
@@ -116,7 +121,7 @@ class ConnectionVideoHandler(SubscriptionProducerConsumer):
 
         self._rtc = rtc
 
-        self._offerToReceive = False
+        self._offerToReceive = 0
 
     def onTrack(self, callback=None):
         """
@@ -131,7 +136,13 @@ class ConnectionVideoHandler(SubscriptionProducerConsumer):
             subscription = r.video.onTrack()
             await subscription.get()
 
+        Note that if you have more than one track, you will need to tell rtcbot how
+        many tracks to prepare to receive::
+
+            r.video.offerToReceive(2)
+
         """
+        self.offerToReceive()
         return self._trackSubscriber.subscribe(callback)
 
     def addTrack(self, frameSubscription=None, fps=None, canSkip=True):
@@ -184,12 +195,12 @@ class ConnectionVideoHandler(SubscriptionProducerConsumer):
         self._trackSubscriber.close()
         super().close()
 
-    def offerToReceive(self):
+    def offerToReceive(self, num=1):
         """
-        This is called automatically on subscribe, but is also available
-        just in case you want delay subscribing until later.
+        Set the number of tracks that you can receive
         """
-        self._offerToReceive = True
+        if self._offerToReceive < num:
+            self._offerToReceive = num
 
     def subscribe(self, subscription=None):
 
@@ -235,29 +246,35 @@ class ConnectionAudioHandler(SubscriptionProducerConsumer):
 
         self._rtc = rtc
 
-        self._offerToReceive = False
+        self._offerToReceive = 0
 
     def onTrack(self, callback=None):
         """
-        Callback that gets called each time a video track is received::
+        Callback that gets called each time a audio track is received::
 
-            @r.video.onTrack
+            @r.audio.onTrack
             def onTrack(track):
                 print(track)
 
         The callback actually works exactly as a subscribe(), so you can do::
 
-            subscription = r.video.onTrack()
+            subscription = r.audio.onTrack()
             await subscription.get()
 
+        Note that if you have more than one track, you will need to tell rtcbot how
+        many tracks to prepare to receive::
+
+            r.audio.offerToReceive(2)
+
         """
+        self.offerToReceive()
         return self._trackSubscriber.subscribe(callback)
 
     def addTrack(self, subscription=None, sampleRate=48000, canSkip=True):
         """
-        Allows to send multiple video tracks in a single connection.
+        Allows to send multiple audio tracks in a single connection.
         Each call to putTrack *adds* the track to the connection.
-        For simple usage, where you only have a single video stream,
+        For simple usage, where you only have a single audio stream,
         just use `putSubscription` - it automatically calls putTrack for you.
         """
         self._log.debug("Adding audio track to connection")
@@ -304,12 +321,12 @@ class ConnectionAudioHandler(SubscriptionProducerConsumer):
         self._trackSubscriber.close()
         super().close()
 
-    def offerToReceive(self):
+    def offerToReceive(self, num=1):
         """
-        This is called automatically on subscribe, but is also available
-        just in case you want delay subscribing until later.
+        Set the number of tracks that you can receive
         """
-        self._offerToReceive = True
+        if self._offerToReceive < num:
+            self._offerToReceive = num
 
     def subscribe(self, subscription=None):
 
@@ -320,8 +337,14 @@ class ConnectionAudioHandler(SubscriptionProducerConsumer):
 class RTCConnection(SubscriptionProducerConsumer):
     _log = logging.getLogger("rtcbot.RTCConnection")
 
-    def __init__(self, defaultChannelOrdered=True, loop=None,
-                 rtcConfiguration=RTCConfiguration([RTCIceServer(urls="stun:stun.l.google.com:19302")])):
+    def __init__(
+        self,
+        defaultChannelOrdered=True,
+        loop=None,
+        rtcConfiguration=RTCConfiguration(
+            [RTCIceServer(urls="stun:stun.l.google.com:19302")]
+        ),
+    ):
         super().__init__(
             directPutSubscriptionType=asyncio.Queue,
             defaultSubscriptionType=asyncio.Queue,
@@ -380,8 +403,7 @@ class RTCConnection(SubscriptionProducerConsumer):
         # Before starting init, we create a default data channel for the connection
         self._log.debug("Setting up default data channel")
         channel = DataChannel(
-            self._rtc.createDataChannel(
-                "default", ordered=self._defaultChannelOrdered)
+            self._rtc.createDataChannel("default", ordered=self._defaultChannelOrdered)
         )
         # Subscribe the default channel directly to our own inputs and outputs.
         # We have it listen to our own self._get, and write to our self._put_nowait
@@ -390,13 +412,16 @@ class RTCConnection(SubscriptionProducerConsumer):
         channel.onReady(lambda: self._setReady(channel.ready))
         self._dataChannels[channel.name] = channel
 
-        # Make sure we offer to receive video and audio if if isn't set up yet
-        if len(self.video._senders) == 0 and self.video._offerToReceive:
+        # Make sure we offer to receive video and audio if if isn't set up yet with
+        # all the receiving transceivers
+        if len(self.video._senders) < self.video._offerToReceive:
             self._log.debug("Offering to receive video")
-            self._rtc.addTransceiver("video", "recvonly")
-        if len(self.audio._senders) == 0 and self.audio._offerToReceive:
+            for i in range(self.video._offerToReceive - len(self.video._senders)):
+                self._rtc.addTransceiver("video", "recvonly")
+        if len(self.audio._senders) < self.audio._offerToReceive:
             self._log.debug("Offering to receive audio")
-            self._rtc.addTransceiver("audio", "recvonly")
+            for i in range(self.audio._offerToReceive - len(self.audio._senders)):
+                self._rtc.addTransceiver("audio", "recvonly")
 
         self._log.debug("Creating new connection offer")
         offer = await self._rtc.createOffer()
