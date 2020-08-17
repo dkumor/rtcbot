@@ -28,6 +28,9 @@ Then, you can complete the installation with pip::
     This is because RTCBot currently cannot take advantage of the Pi's hardware acceleration, 
     meaning that all video encoding is done in software.
 
+.. note::
+    You might need to reboot your Pi for rtcbot to work!
+
 .. warning::
     These instructions were made with reference to Raspbian Buster.
     While the library *does* work on Raspbian Stretch,
@@ -46,6 +49,9 @@ RTCbot requires several dependencies which are best installed using apt-get::
 Then, you can complete the installation with pip::
 
     sudo pip3 install rtcbot
+
+.. note::
+    You might need to reboot, or manually start pulseaudio if it was not previously installed.
 
 Mac
 +++++++++++
