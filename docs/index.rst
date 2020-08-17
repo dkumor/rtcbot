@@ -14,7 +14,8 @@ even when it is not connected to your local network.
 
 .. raw:: html
 
-    <h2><a href="examples/basics/README.html"> Start The Tutorials</a></h2>
+    <h2><a href="examples/basics/README.html">Start The Tutorials</a></h2>
+    <h4><a href="https://github.com/dkumor/rtcbot">View on Github</a></h4>
     <video playsinline loop autoplay muted style="max-width: 100%; margin-bottom: 10px; margin-top: 10px;">
         <source src="_static/control_example.m4v" type="video/mp4">
     </video>

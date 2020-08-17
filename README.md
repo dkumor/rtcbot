@@ -20,8 +20,6 @@ The library is explained piece by piece in [the documentation](https://rtcbot.re
 
 ### [See Documentation & Tutorials](https://rtcbot.readthedocs.io/en/latest/index.html)
 
-#### [Ask Questions on Gitter](https://gitter.im/rtcbot/community)
-
 ## Installing
 
 RTCBot relies on some Python libraries that will need to be compiled by pip, so
