@@ -285,8 +285,8 @@ myConnection = RTCConnection(rtcConfiguration=RTCConfiguration([
 ```javascript
 var conn = new rtcbot.RTCConnection(rtcConfiguration=[
                     { urls: ["stun:stun.l.google.com:19302"] },
-                    { urls: ["turn:my.server.ip:3478?transport=udp", 
-                        username: "myusername", credential: "mypassword"], },
+                    { urls: "turn:my.server.ip:3478?transport=udp", 
+                        username: "myusername", credential: "mypassword", },
                 ]);
 ```
 
