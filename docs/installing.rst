@@ -29,7 +29,7 @@ Then, you can complete the installation with pip::
     meaning that all video encoding is done in software.
 
 .. note::
-    You might need to reboot your Pi for rtcbot to work!
+    You might need to reboot your Pi for RTCBot to work!
 
 .. warning::
     These instructions were made with reference to Raspbian Buster.

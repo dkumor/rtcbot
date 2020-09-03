@@ -3,7 +3,7 @@ pyserial
 pyserial-asyncio
 numpy
 aiohttp
-soundcard
+SoundCard
 inputs
 pynmea2
 nose
