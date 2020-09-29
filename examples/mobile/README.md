@@ -283,7 +283,8 @@ myConnection = RTCConnection(rtcConfiguration=RTCConfiguration([
 ```
 
 ```javascript
-var conn = new rtcbot.RTCConnection(rtcConfiguration=[
+var conn = new rtcbot.RTCConnection(true, {
+                iceServers:[
                     { urls: ["stun:stun.l.google.com:19302"] },
                     { urls: "turn:my.server.ip:3478?transport=udp", 
                         username: "myusername", credential: "mypassword", },
@@ -340,7 +341,8 @@ myConnection = RTCConnection(rtcConfiguration=RTCConfiguration([
 ```
 
 ```javascript
-var conn = new rtcbot.RTCConnection(rtcConfiguration=[
+var conn = new rtcbot.RTCConnection(true, {
+                iceServers:[
                     { urls: ["stun:stun.l.google.com:19302"] },
                     { urls: "turn:<PUBLIC_NETWORK_IP:3478?transport=udp", 
                         username: "myusername", credential: "mypassword", },
