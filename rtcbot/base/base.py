@@ -87,7 +87,7 @@ class BaseSubscriptionProducer(baseEventHandler):
             Your class logger - it gets a child of this logger for debug messages. If nothing is passed,
             creates a root logger for your class, and uses a child for that.
         ready (bool,optional):
-            Your producer probably doesn't need setup time, so this is set to `True` automatically, which 
+            Your producer probably doesn't need setup time, so this is set to `True` automatically, which
             automatically sets :attr:`_ready`. If you need to do background tasks, set this to False.
     """
 
@@ -148,24 +148,24 @@ class BaseSubscriptionProducer(baseEventHandler):
             subscription (optional):
                 An optional existing subscription to subscribe to. This can be one of 3 things:
                     1) An object which has the method `put_nowait` (see :doc:`subscriptions`)::
-                        
+
                         q = asyncio.Queue()
                         myobj.subscribe(q)
                         while True:
                             data = await q.get()
                             print(data)
                     2) A callback function - this will be called the moment new data is inserted::
-                        
+
                         @myobj.subscribe
                         def myfunction(data):
                             print(data)
                     3) An coroutine callback - A future of this coroutine is created on each insert::
-                        
+
                         @myobj.subscribe
                         async def myfunction(data):
                             await asyncio.sleep(5)
                             print(data)
-                    
+
         Returns:
             A subscription. If one was passed in, returns the passed in subscription::
 
@@ -260,7 +260,7 @@ class BaseSubscriptionProducer(baseEventHandler):
 
     async def get(self):
         """
-        Behaves similarly to :func:`subscribe().get()`. On the first call, creates a default 
+        Behaves similarly to :func:`subscribe().get()`. On the first call, creates a default
         subscription, and all subsequent calls to :func:`get()` use that subscription.
 
         If :func:`unsubscribe` is called, the subscription is deleted, so a subsequent call to :func:`get`
@@ -288,10 +288,11 @@ class BaseSubscriptionProducer(baseEventHandler):
         """
         Shuts down the data gathering, and removes all subscriptions.
         """
-        self.__splog.debug("Closing")
-        self._shouldClose = True
-        self.unsubscribeAll()
-        super().close()
+        if not self.closed:
+            self.__splog.debug("Closing")
+            self._shouldClose = True
+            self.unsubscribeAll()
+            super().close()
 
     def _close(self):
         """
@@ -303,7 +304,7 @@ class BaseSubscriptionProducer(baseEventHandler):
 
 class BaseSubscriptionConsumer(baseEventHandler):
     """
-    A base class upon which consumers of subscriptions can be built. 
+    A base class upon which consumers of subscriptions can be built.
 
     The BaseSubscriptionConsumer class handles the logic of switching incoming subscriptions mid-stream and
     all the other annoying stuff.
@@ -334,7 +335,7 @@ class BaseSubscriptionConsumer(baseEventHandler):
         Warning:
             Only call this if you are subclassing :class:`BaseSubscriptionConsumer`.
 
-        This function is to be awaited by a subclass to get the next datapoint 
+        This function is to be awaited by a subclass to get the next datapoint
         from the active subscription. It internally handles the subscription for you,
         and transparently manages the user switching a subscription during runtime::
 
@@ -345,14 +346,14 @@ class BaseSubscriptionConsumer(baseEventHandler):
 
         Raises:
             :class:`SubscriptionClosed`:
-                If :func:`close` was called, this error is raised, signalling your 
+                If :func:`close` was called, this error is raised, signalling your
                 data processing function to clean up and exit.
 
         Returns:
             The next datapoint that was put or subscribed to from the currently active
             subscription.
 
-        
+
         """
         while not self._shouldClose:
             # create_task not supported on older python versions
@@ -462,7 +463,7 @@ class BaseSubscriptionConsumer(baseEventHandler):
             myobj.putSubscription(q)
             assert myobj.subscription == q
 
-        The object is not affected, other than no longer listening to the subscription, 
+        The object is not affected, other than no longer listening to the subscription,
         and not processing new data until something is inserted.
 
         """
@@ -475,10 +476,11 @@ class BaseSubscriptionConsumer(baseEventHandler):
         """
         Cleans up and closes the object.
         """
-        self.__sclog.debug("Closing")
-        self._shouldClose = True
-        if self._getTask is not None and not self._getTask.done():
-            self._getTask.cancel()
+        if not self.closed:
+            self.__sclog.debug("Closing")
+            self._shouldClose = True
+            if self._getTask is not None and not self._getTask.done():
+                self._getTask.cancel()
         super().close()
 
     @property

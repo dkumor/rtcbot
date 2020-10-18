@@ -20,7 +20,7 @@ from .subscriptions import MostRecentSubscription
 
 class DataChannel(SubscriptionProducerConsumer):
     """
-    Represents a data channel. You can put_nowait messages into it, 
+    Represents a data channel. You can put_nowait messages into it,
     and subscribe to messages coming from it.
 
     """
@@ -35,7 +35,7 @@ class DataChannel(SubscriptionProducerConsumer):
         self._rtcDataChannel.on("message", self._put_preprocess)
         self._json = json
 
-        self._log.debug("READY STATE %s", self._rtcDataChannel.readyState)
+        self._log.debug("Ready State %s", self._rtcDataChannel.readyState)
         if self._rtcDataChannel.readyState == "open":
             # Make sure we pass messages forward
             asyncio.ensure_future(self._messageSender())
@@ -44,6 +44,13 @@ class DataChannel(SubscriptionProducerConsumer):
             self._rtcDataChannel.on(
                 "open", lambda: asyncio.ensure_future(self._messageSender())
             )
+
+        @self._rtcDataChannel.transport.transport.on("statechange")
+        async def stateChange():
+            state = self._rtcDataChannel.transport.transport.state
+            self._log.debug("Channel State: %s", state)
+            if state == "closed" or state == "failed":
+                self.close()
 
     async def _messageSender(self):
         self._log.debug("Channel open, ready to send")
@@ -160,6 +167,7 @@ class ConnectionVideoHandler(SubscriptionProducerConsumer):
             s.putSubscription(self._defaultSenderSubscription)
         if self._defaultSender is None:
             self._defaultSender = s
+            self._defaultSender.onClose(self.close)
         self._rtc.addTrack(s.videoStreamTrack)
         self._senders.add(s)
         return s
@@ -184,16 +192,18 @@ class ConnectionVideoHandler(SubscriptionProducerConsumer):
         if self._defaultReceiver is None:  # The default receiver track is the first one
             self._defaultReceiver = track
             self._defaultReceiver.subscribe(self._put_nowait)
+            self._defaultReceiver.onClose(self.close)
         self._receivers.add(track)
         self._trackSubscriber._put_nowait(track)
 
     def close(self):
-        for t in self._senders:
-            t.close()
-        for t in self._receivers:
-            t.close()
-        self._trackSubscriber.close()
-        super().close()
+        if not self.closed:
+            for t in self._senders:
+                t.close()
+            for t in self._receivers:
+                t.close()
+            self._trackSubscriber.close()
+            super().close()
 
     def offerToReceive(self, num=1):
         """
@@ -285,6 +295,7 @@ class ConnectionAudioHandler(SubscriptionProducerConsumer):
             s.putSubscription(self._defaultSenderSubscription)
         if self._defaultSender is None:
             self._defaultSender = s
+            self._defaultSender.onClose(self.close)
 
         self._rtc.addTrack(s.audioStreamTrack)
         self._senders.add(s)
@@ -310,16 +321,18 @@ class ConnectionAudioHandler(SubscriptionProducerConsumer):
         if self._defaultReceiver is None:  # The default receiver track is the first one
             self._defaultReceiver = track
             self._defaultReceiver.subscribe(self._put_nowait)
+            self._defaultReceiver.onClose(self.close)
         self._receivers.add(track)
         self._trackSubscriber._put_nowait(track)
 
     def close(self):
-        for t in self._senders:
-            t.close()
-        for t in self._receivers:
-            t.close()
-        self._trackSubscriber.close()
-        super().close()
+        if not self.closed:
+            for t in self._senders:
+                t.close()
+            for t in self._receivers:
+                t.close()
+            self._trackSubscriber.close()
+            super().close()
 
     def offerToReceive(self, num=1):
         """
@@ -362,7 +375,7 @@ class RTCConnection(SubscriptionProducerConsumer):
         )
         self._rtc = RTCPeerConnection(configuration=rtcConfiguration)
         self._rtc.on("datachannel", self._onDatachannel)
-        # self._rtc.on("iceconnectionstatechange", self._onIceConnectionStateChange)
+        self._rtc.on("iceconnectionstatechange", self._onIceConnectionStateChange)
         self._rtc.on("track", self._onTrack)
 
         self._hasRemoteDescription = False
@@ -370,6 +383,10 @@ class RTCConnection(SubscriptionProducerConsumer):
 
         self._videoHandler = ConnectionVideoHandler(self._rtc)
         self._audioHandler = ConnectionAudioHandler(self._rtc)
+
+        # When the video/audio handlers get closed, close the entire connection
+        self._videoHandler.onClose(self.close)
+        self._audioHandler.onClose(self.close)
 
     async def getLocalDescription(self, description=None):
         """
@@ -410,6 +427,7 @@ class RTCConnection(SubscriptionProducerConsumer):
         channel.putSubscription(NoClosedSubscription(self._get))
         channel.subscribe(self._put_nowait)
         channel.onReady(lambda: self._setReady(channel.ready))
+        channel.onClose(self.close)
         self._dataChannels[channel.name] = channel
 
         # Make sure we offer to receive video and audio if if isn't set up yet with
@@ -436,6 +454,12 @@ class RTCConnection(SubscriptionProducerConsumer):
         await self._rtc.setRemoteDescription(RTCSessionDescription(**description))
         self._hasRemoteDescription = True
 
+    async def _onIceConnectionStateChange(self):
+        self._log.debug("ICE state: %s", self._rtc.iceConnectionState)
+        if self._rtc.iceConnectionState == "failed":
+            self._setError(self._rtc.iceConnectionState)
+            await self.close()
+
     def _onDatachannel(self, channel):
         """
         When a data channel comes in, adds it to the data channels, and sets up its messaging and stuff.
@@ -449,9 +473,7 @@ class RTCConnection(SubscriptionProducerConsumer):
             channel.putSubscription(NoClosedSubscription(self._get))
             channel.subscribe(self._put_nowait)
             channel.onReady(lambda: self._setReady(channel.ready))
-
-            # Set the default channel
-            self._defaultChannel = channel
+            channel.onClose(self.close)
 
         else:
             self._dataChannelSubscriber.put_nowait(channel)
@@ -514,6 +536,15 @@ class RTCConnection(SubscriptionProducerConsumer):
         If the loop is running, returns a future that will close the connection. Otherwise, runs
         the loop temporarily to complete closing.
         """
+        if self.closed:
+            if self._loop.is_running():
+
+                async def donothing():
+                    pass
+
+                return asyncio.ensure_future(donothing())
+            return None
+        self._log.debug("Closing connection")
         super().close()
         # And closes all tracks
         self.video.close()

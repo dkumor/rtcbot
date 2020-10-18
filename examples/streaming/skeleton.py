@@ -64,9 +64,11 @@ async def index(request):
     )
 
 
-async def cleanup(app):
+async def cleanup(app=None):
     await conn.close()
 
+
+conn.onClose(cleanup)
 
 app = web.Application()
 app.add_routes(routes)

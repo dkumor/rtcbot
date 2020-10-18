@@ -10,7 +10,7 @@ from .base import SubscriptionProducerConsumer, SubscriptionClosed
 
 class Websocket(SubscriptionProducerConsumer):
     """
-    Wraps an aiohttp websocket to have an API matching RTCBot. The websocket 
+    Wraps an aiohttp websocket to have an API matching RTCBot. The websocket
     can be given either a URL to connect to::
 
         ws = Websocket("http://localhost:8080/ws")
@@ -110,10 +110,9 @@ class Websocket(SubscriptionProducerConsumer):
         self._log.debug("Finished closing websocket")
 
     def close(self):
-        if self.ws is not None:
+        if self.ws is not None and not self.closed:
             if self._loop.is_running():
-                self._log.debug(
-                    "Loop is running - close will return a future!")
+                self._log.debug("Loop is running - close will return a future!")
                 return asyncio.ensure_future(self._clientClose())
             else:
                 self._loop.run_until_complete(self._clientClose())

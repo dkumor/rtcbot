@@ -205,10 +205,10 @@ Also, don't forget to close the microphone at the end with `mic.close()`. The ja
 ```javascript
 var conn = new RTCConnection();
 
-conn.video.subscribe(function(stream) {
+conn.video.subscribe(function (stream) {
   document.querySelector("video").srcObject = stream;
 });
-conn.audio.subscribe(function(stream) {
+conn.audio.subscribe(function (stream) {
   document.querySelector("audio").srcObject = stream;
 });
 ```

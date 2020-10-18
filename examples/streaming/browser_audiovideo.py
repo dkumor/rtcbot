@@ -73,11 +73,14 @@ async def index(request):
     )
 
 
-async def cleanup(app):
+async def cleanup(app=None):
+    print("CLEANUP")
     await conn.close()
     display.close()
     speaker.close()
 
+
+conn.onClose(cleanup)
 
 app = web.Application()
 app.add_routes(routes)

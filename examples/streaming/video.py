@@ -74,6 +74,8 @@ async def cleanup(app):
     camera.close()
 
 
+conn.onClose(cleanup)
+
 app = web.Application()
 app.add_routes(routes)
 app.on_shutdown.append(cleanup)

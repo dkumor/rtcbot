@@ -10,13 +10,13 @@ README = (HERE / "README.md").read_text()
 # This call to setup() does all the work
 setuptools.setup(
     name="rtcbot",
-    version="0.2.1",
+    version="0.2.2",
     description="An asyncio-focused library for webrtc robot control",
     long_description=README,
     long_description_content_type="text/markdown",
     url="https://github.com/dkumor/rtcbot",
     author="Daniel Kumor",
-    author_email="daniel@dkumor.com",
+    author_email="pypi@dkumor.com",
     license="MIT",
     classifiers=[
         "Intended Audience :: Developers",

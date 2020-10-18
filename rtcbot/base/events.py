@@ -10,7 +10,7 @@ class baseReadySubscription:
         self.__evt = evt
 
     async def get(
-        self
+        self,
     ):  # We want the get to be there for consistency with the rest of the API
         await self.__evt.wait()
 
@@ -171,7 +171,7 @@ class baseEventHandler:
 
     def onClose(self, subscription=None):
         """
-        This is mainly useful for connections - they can be closed remotely. This allows 
+        This is mainly useful for connections - they can be closed remotely. This allows
         handling the close event. ::
 
             @myobj.onClose
@@ -199,6 +199,7 @@ class baseEventHandler:
         Fires the onClose event
         """
         if not self.__closeEvent.is_set():
+            self._setReady(False)
             self.__logger.debug("Firing onClose")
             self.__closeEvent.set()
             for subscription in self.__onClose:
