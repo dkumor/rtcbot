@@ -3,6 +3,7 @@ from aiortc import (
     RTCSessionDescription,
     RTCConfiguration,
     RTCIceServer,
+    exceptions,
 )
 import asyncio
 import logging
@@ -64,7 +65,11 @@ class DataChannel(SubscriptionProducerConsumer):
                 self._rtcDataChannel.send(msg)
             except SubscriptionClosed:
                 pass
+            except exceptions.InvalidStateError:
+                self._close()
+                break
                 # The while loop should exit here
+        self._setReady(False)
         self._log.debug("Stopping message sender")
 
     def _put_preprocess(self, data):

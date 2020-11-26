@@ -5,9 +5,7 @@ and an average desktop.
 
 The ideal situation would be if you could strap an entire desktop to your robot. With RTCBot, we can do the next best thing: we can stream the robot's inputs to a desktop, which can then perform computation, and send back commands.
 
-In this tutorial, we will go back to a single file for both server and robot for simplicitly. The tutorial is split into two parts. In the first part, we set up a connection to the robot from Python, allowing you to control the robot with an xbox controller without a browser.
-
-The second part of the tutorial adds a neural network into the mix, which tries to imitate the xbox controller's controls.
+In this tutorial, we will go back to a single file for both server and robot for simplicitly. We set up a connection to the robot from Python, allowing you to control the robot with an xbox controller without a browser.
 
 ```eval_rst
 .. note::
@@ -130,4 +128,3 @@ Control message: {'timestamp': 1553379217.004892, 'code': 'ABS_X', 'state': -125
 .. warning::
    The output for the `Gamepad` object is currently different in Javascript and in Python. Make sure you don't mix them up!
 ```
-

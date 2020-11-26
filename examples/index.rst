@@ -19,3 +19,4 @@ The full code for each of the tutorials can be seen in the `examples directory <
     remotecontrol/README.md
     mobile/README.md
     offloading/README.md
+    threads/README.md

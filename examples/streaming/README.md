@@ -71,7 +71,7 @@ async def index(request):
     </html>
     """)
 
-async def cleanup(app):
+async def cleanup(app=None):
     await conn.close()
 
 app = web.Application()
@@ -161,7 +161,7 @@ All you need is to add a couple lines of code to the skeleton to get a fully-fun
      </html>
      """)
 
- async def cleanup(app):
+ async def cleanup(app=None):
      await conn.close()
 +    camera.close() # Singletons like a camera are not awaited on close
 
@@ -295,7 +295,7 @@ async def index(request):
     </html>
     """)
 
-async def cleanup(app):
+async def cleanup(app=None):
     await conn.close()
     display.close()
     speaker.close()

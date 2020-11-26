@@ -74,7 +74,7 @@ async def index(request):
     with open("index.html", "r") as f:
         return web.Response(content_type="text/html", text=f.read())
 
-async def cleanup(app):
+async def cleanup(app=None):
     await conn.close()
     camera.close()
 

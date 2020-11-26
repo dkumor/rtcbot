@@ -122,7 +122,7 @@ async def index(request):
     </html>
     """)
 
-async def cleanup(app):
+async def cleanup(app=None):
     await conn.close()
 
 
@@ -183,7 +183,7 @@ and send back the information necessary to complete the connection.
 Finally, on application exit, we close the connection:
 
 ```python
-async def cleanup(app):
+async def cleanup(app=None):
     await conn.close()
 
 app.on_shutdown.append(cleanup)
@@ -201,7 +201,7 @@ async function connect() {
   let response = await fetch("/connect", {
     method: "POST",
     cache: "no-cache",
-    body: JSON.stringify(offer)
+    body: JSON.stringify(offer),
   });
 
   await conn.setRemoteDescription(await response.json());
@@ -219,7 +219,7 @@ Finally, we replace the original `console.log` with a `conn.put_nowait` to send 
 
 ```javascript
 var mybutton = document.querySelector("#mybutton");
-mybutton.onclick = function() {
+mybutton.onclick = function () {
   conn.put_nowait("Button Clicked!");
 };
 ```
@@ -259,14 +259,14 @@ example given above to both send and receive JSON on button press:
 The first modification we make is subscribing to incoming messages in javascript,
 
 ```javascript
-conn.subscribe(m => console.log("Received from python:", m));
+conn.subscribe((m) => console.log("Received from python:", m));
 ```
 
 ...and sending messages as json:
 
 ```javascript
 var mybutton = document.querySelector("#mybutton");
-mybutton.onclick = function() {
+mybutton.onclick = function () {
   conn.put_nowait({ data: "ping" });
 };
 ```
@@ -359,7 +359,7 @@ async def index(request):
     </html>
     """)
 
-async def cleanup(app):
+async def cleanup(app=None):
     await conn.close()
 
 app = web.Application()

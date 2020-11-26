@@ -23,7 +23,7 @@ async def connect(request):
     return web.json_response(serverResponse)
 
 
-async def cleanup(app):
+async def cleanup(app=None):
     await conn.close()
     cam.close()
 

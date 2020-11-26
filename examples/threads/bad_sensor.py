@@ -2,12 +2,31 @@ from aiohttp import web
 
 routes = web.RouteTableDef()
 
-from rtcbot import RTCConnection, getRTCBotJS
+from rtcbot import RTCConnection, getRTCBotJS, CVCamera
 
-
+camera = CVCamera()
 # For this example, we use just one global connection
 conn = RTCConnection()
+conn.video.putSubscription(camera)
 
+import time
+import random
+import asyncio
+
+
+def get_sensor_data():
+    time.sleep(0.5)  # Represents an operation that takes half a second to complete
+    return random.random()
+
+
+async def send_sensor_data():
+    while True:
+        await asyncio.sleep(1)
+        data = get_sensor_data()
+        conn.put_nowait(data)  # Send data to browser
+
+
+asyncio.ensure_future(send_sensor_data())
 
 # Serve the RTCBot javascript library at /rtcbot.js
 @routes.get("/rtcbot.js")
@@ -27,10 +46,10 @@ async def connect(request):
 async def index(request):
     return web.Response(
         content_type="text/html",
-        text=r"""
+        text="""
     <html>
         <head>
-            <title>RTCBot: Skeleton</title>
+            <title>RTCBot: Video</title>
             <script src="/rtcbot.js"></script>
         </head>
         <body style="text-align: center;padding-top: 30px;">
@@ -40,6 +59,12 @@ async def index(request):
             </p>
             <script>
                 var conn = new rtcbot.RTCConnection();
+
+                conn.video.subscribe(function(stream) {
+                    document.querySelector("video").srcObject = stream;
+                });
+
+                conn.subscribe(m => console.log("Received from python:", m));
 
                 async function connect() {
                     let offer = await conn.getLocalDescription();
@@ -66,7 +91,10 @@ async def index(request):
 
 async def cleanup(app=None):
     await conn.close()
+    camera.close()
 
+
+conn.onClose(cleanup)
 
 app = web.Application()
 app.add_routes(routes)

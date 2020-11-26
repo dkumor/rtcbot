@@ -69,7 +69,7 @@ Next, to establish the connection with Python, you include the Python counterpar
         return web.json_response(response)
 
 
-    async def cleanup(app):
+    async def cleanup(app=None):
         if conn is not None:
             await conn.close()
 

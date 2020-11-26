@@ -68,7 +68,7 @@ async def index(request):
     </html>
     """)
 
-async def cleanup(app):
+async def cleanup(app=None):
     await conn.close()
 
 app = web.Application()
@@ -152,7 +152,7 @@ We now add keyboard support. This is done with the `rtcbot.Keyboard` javascript 
      )
 
 
- async def cleanup(app):
+ async def cleanup(app=None):
      await conn.close()
 
  app = web.Application()
@@ -349,7 +349,7 @@ async def index(request):
     </html>
     """)
 
-async def cleanup(app):
+async def cleanup(app=None):
     await conn.close()
 
 app = web.Application()

@@ -94,7 +94,7 @@ async def index(request):
     )
 
 
-async def cleanup(app):
+async def cleanup(app=None):
     await conn.close()
 
 

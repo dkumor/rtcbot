@@ -1,11 +1,10 @@
-
 from aiortc.mediastreams import (
     MediaStreamError,
     AUDIO_PTIME,
     VIDEO_CLOCK_RATE,
     VIDEO_TIME_BASE,
     AudioStreamTrack,
-    VideoStreamTrack
+    VideoStreamTrack,
 )
 from av import VideoFrame, AudioFrame
 
@@ -30,7 +29,7 @@ class _audioSenderTrack(AudioStreamTrack):
     frames are of an arbitrary size, and come in whenever convenient, and converting it into a stream
     of data at 960 samples per frame.
 
-    
+
     https://datatracker.ietf.org/doc/rfc7587/?include_text=1
 
     """
@@ -62,7 +61,7 @@ class _audioSenderTrack(AudioStreamTrack):
             self.stop()
             raise MediaStreamError
         except:
-            self._log.exception("Got unknown error. Crashing video stream")
+            self._log.exception("Got unknown error. Crashing audio stream")
             self.stop()
             raise MediaStreamError
 
@@ -82,7 +81,7 @@ class _audioSenderTrack(AudioStreamTrack):
         # We therefore force a conversion to 16 bit integer:
         data = (np.clip(data, -1, 1) * 32768).astype(np.int16)
         new_frame = AudioFrame.from_ndarray(
-            data.reshape(1,-1), format="s16", layout=str(data.shape[1]) + "c"
+            data.reshape(1, -1), format="s16", layout=str(data.shape[1]) + "c"
         )
 
         # Use the sample rate for the base clock
@@ -276,7 +275,9 @@ class AudioReceiver(BaseSubscriptionProducer):
                     "Incoming audio frame's data type unsupported: %s", audioFrame
                 )
             else:
-                data = np.reshape(data, (audioFrame.samples, -1)).astype(np.float) / 32768
+                data = (
+                    np.reshape(data, (audioFrame.samples, -1)).astype(np.float) / 32768
+                )
                 self._put_nowait(data)
 
             # Get the next frame

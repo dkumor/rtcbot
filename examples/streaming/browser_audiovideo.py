@@ -74,7 +74,6 @@ async def index(request):
 
 
 async def cleanup(app=None):
-    print("CLEANUP")
     await conn.close()
     display.close()
     speaker.close()

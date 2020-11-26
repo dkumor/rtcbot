@@ -84,7 +84,7 @@ async def index(request):
     )
 
 
-async def cleanup(app):
+async def cleanup(app=None):
     global ws
     if ws is not None:
         c = ws.close()
