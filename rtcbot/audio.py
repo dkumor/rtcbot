@@ -2,8 +2,6 @@ import asyncio
 import logging
 import numpy as np
 
-import soundcard as sc
-
 
 from .base import (
     ThreadedSubscriptionProducer,
@@ -19,18 +17,18 @@ class Microphone(ThreadedSubscriptionProducer):
     output sound while reading it.
 
     Args:
-        samplerate (int,optional): 
+        samplerate (int,optional):
             The sampling rate in Hz. Default is 48000.
         channels (int,list(int),optional):
-            The index of channel to record. 
+            The index of channel to record.
             Allows a list of indices. Records on all available channels by default.
-        blocksize (int,optional): 
+        blocksize (int,optional):
             Records this many samples at a time. A lower block size will give lower latency,
             but higher CPU usage.
         device (:class:`soundcard._Microphone`):
             The :mod:`soundcard` device to record from. Uses default if not specified.
-    
-    
+
+
     """
 
     _log = logging.getLogger("rtcbot.Microphone")
@@ -43,6 +41,11 @@ class Microphone(ThreadedSubscriptionProducer):
         device=None,
         loop=None,
     ):
+
+        # SoundCard should only be needed when it is actually used
+        self._log.debug("Loading SoundCard library")
+        import soundcard as sc
+
         if device is None:
             device = sc.default_microphone()
         self._device = device
@@ -80,6 +83,10 @@ class Speaker(ThreadedSubscriptionConsumer):
     def __init__(
         self, samplerate=48000, channels=None, blocksize=1024, device=None, loop=None
     ):
+        # SoundCard should only be needed when it is actually used
+        self._log.debug("Loading SoundCard library")
+        import soundcard as sc
+
         if device is None:
             device = sc.default_speaker()
         self._device = device

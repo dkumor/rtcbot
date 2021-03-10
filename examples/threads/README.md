@@ -133,7 +133,7 @@ To fix this issue, the sensor needs to be read in a different thread, so that th
 
 Thankfully, RTCBot has built-in helper classes that set everything up for you here. The `ThreadedSubscriptionProducer` runs in a system thread, allowing arbitrary blocking code, and has built-in mechanisms that let you queue up data for use from the asyncio event loop.
 
-The "bad" code:
+The code that blocks the connection:
 
 ```python
 import time
