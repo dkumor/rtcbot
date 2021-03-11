@@ -372,6 +372,8 @@ class BaseSubscriptionConsumer(baseEventHandler):
                 self.__sclog.debug(
                     "Incoming subscription closed - checking for new subscription"
                 )
+            except GeneratorExit:
+                raise SubscriptionClosed("SubscriptionConsumer has been closed")
             except:
                 self.__sclog.exception("Got unrecognized error from task. ignoring:")
 

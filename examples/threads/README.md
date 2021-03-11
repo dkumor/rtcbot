@@ -17,7 +17,7 @@ def get_sensor_data():
     return random.random()
 ```
 
-Suppose we were to add this function to the code used for the video streaming tutorial. We will send the sensor reading once a second:
+We will base this code on the original single-connection video-streaming tutorial for simplicity. We will send the sensor reading once a second:
 
 ```diff
  from aiohttp import web
@@ -75,7 +75,7 @@ Suppose we were to add this function to the code used for the video streaming tu
              <script src="/rtcbot.js"></script>
          </head>
          <body style="text-align: center;padding-top: 30px;">
-             <video autoplay playsinline controls></video> <audio autoplay></audio>
+             <video autoplay playsinline muted controls></video>
              <p>
              Open the browser's developer tools to see console messages (CTRL+SHIFT+C)
              </p>

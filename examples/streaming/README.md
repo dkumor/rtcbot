@@ -43,7 +43,7 @@ async def index(request):
             <script src="/rtcbot.js"></script>
         </head>
         <body style="text-align: center;padding-top: 30px;">
-            <video autoplay playsinline controls></video> <audio autoplay></audio>
+            <video autoplay playsinline muted controls></video>
             <p>
             Open the browser's developer tools to see console messages (CTRL+SHIFT+C)
             </p>
@@ -128,7 +128,7 @@ All you need is to add a couple lines of code to the skeleton to get a fully-fun
              <script src="/rtcbot.js"></script>
          </head>
          <body style="text-align: center;padding-top: 30px;">
-             <video autoplay playsinline controls></video> <audio autoplay></audio>
+             <video autoplay playsinline muted controls></video>
              <p>
              Open the browser's developer tools to see console messages (CTRL+SHIFT+C)
              </p>
@@ -183,7 +183,10 @@ Also, remember to subscribe/put all subscriptions into `conn` _before_ initializ
 
 ## Adding Audio
 
-Now let's add an audio stream. Be aware that a Pi 3 with USB microphone might struggle a bit sending both audio and video at the same time. Try the code on your desktop/laptop or a Pi 4 first to make sure it works before attempting use with the Pi 3.
+```eval_rst
+.. warning::
+    Be aware that a Pi 3 with USB microphone might struggle a bit sending both audio and video at the same time. Try the code on your desktop/laptop or a Pi 4 first to make sure it works before attempting use with the Pi 3.
+```
 
 Based on what you know of RTCBot so far, and knowing that you can use a microphone with the `Microphone` class, do you think you can figure out audio just looking at the video code above?
 
@@ -200,7 +203,9 @@ conn.video.putSubscription(camera)
 conn.audio.putSubscription(mic)
 ```
 
-Also, don't forget to close the microphone at the end with `mic.close()`. The javascript end is likewise:
+Also, don't forget to close the microphone at the end with `mic.close()`!
+
+On the browser side, we add an `<audio autoplay></audio>` element right after the `<video>` element, and update the javascript:
 
 ```javascript
 var conn = new RTCConnection();

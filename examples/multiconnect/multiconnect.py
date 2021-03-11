@@ -5,9 +5,57 @@ routes = web.RouteTableDef()
 from rtcbot import RTCConnection, getRTCBotJS, CVCamera
 
 camera = CVCamera()
-# For this example, we use just one global connection
-conn = RTCConnection()
-conn.video.putSubscription(camera)
+
+
+class ConnectionHandler:
+    active_connections = []
+
+    def __init__(self):
+        self.conn = RTCConnection()
+
+        # Subscribe to the video frames - each connection gets its own subscription
+        global camera
+        self.videoSubscription = camera.subscribe()
+        self.conn.video.putSubscription(self.videoSubscription)
+
+        # Perform cleanup when the connection is closed
+        self.conn.onClose(self.close)
+
+        # Add this connection to the list of active connections
+        ConnectionHandler.active_connections.append(self)
+
+    def close(self):
+        # When done, unsubscribe from the video feed
+        global camera
+        camera.unsubscribe(self.videoSubscription)
+
+        # Remove from list of active connections
+        ConnectionHandler.active_connections.remove(self)
+
+    async def getLocalDescription(self, clientOffer):
+        # Pass the connection setup result
+        return await self.conn.getLocalDescription(clientOffer)
+
+    @staticmethod
+    async def cleanup():
+        # Close all active connections, making sure to use an array copy [:]
+        # since closing removes the item from the array!
+        for c in ConnectionHandler.active_connections[:]:
+            await c.conn.close()
+
+
+# This sets up the connection
+@routes.post("/connect")
+async def connect(request):
+    clientOffer = await request.json()
+    conn = ConnectionHandler()  # Our ConnectionHandler class!
+    serverResponse = await conn.getLocalDescription(clientOffer)
+    return web.json_response(serverResponse)
+
+
+async def cleanup(app=None):
+    await ConnectionHandler.cleanup()  # When the app is closed, close all connections
+    camera.close()
 
 
 # Serve the RTCBot javascript library at /rtcbot.js
@@ -16,14 +64,7 @@ async def rtcbotjs(request):
     return web.Response(content_type="application/javascript", text=getRTCBotJS())
 
 
-# This sets up the connection
-@routes.post("/connect")
-async def connect(request):
-    clientOffer = await request.json()
-    serverResponse = await conn.getLocalDescription(clientOffer)
-    return web.json_response(serverResponse)
-
-
+# Serve the webpage!
 @routes.get("/")
 async def index(request):
     return web.Response(
@@ -68,13 +109,6 @@ async def index(request):
     """,
     )
 
-
-async def cleanup(app=None):
-    await conn.close()
-    camera.close()
-
-
-conn.onClose(cleanup)
 
 app = web.Application()
 app.add_routes(routes)

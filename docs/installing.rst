@@ -23,7 +23,7 @@ Then, you can complete the installation with pip::
     sudo pip3 install rtcbot
 
 .. warning::
-    You might need to reboot your Pi for RTCBot to work! If rtcbot freezes on import, it means that you need to start PulseAudio.
+    You might need to reboot your Pi for RTCBot to work! If RTCBot freezes when starting microphone or speaker, it means that you need to start PulseAudio.
 
 .. note::
     It is recommended that you use the Pi 4 with RTCBot. While it was tested to work down to the Raspberry Pi 3B, it was observed to have
@@ -51,7 +51,7 @@ Then, you can complete the installation with pip::
     sudo pip3 install rtcbot
 
 .. warning::
-    You might need to reboot, or manually start PulseAudio if it was not previously installed. If RTCBot freezes on import, it means that PulseAudio is not running.
+    You might need to reboot, or manually start PulseAudio if it was not previously installed. If RTCBot freezes when starting microphone or speaker, it means that PulseAudio is not running.
 
 Mac
 +++++++++++
