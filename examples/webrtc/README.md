@@ -132,6 +132,14 @@ app.on_shutdown.append(cleanup)
 web.run_app(app)
 ```
 
+```eval_rst
+.. note::
+    If you use Safari, you might want to add an additional adapter script to the head element `to fix connection issues <https://github.com/dkumor/rtcbot/issues/22>`_ when running locally::
+
+        <script crossorigin src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+
+```
+
 The above example establishes a WebRTC connection from the browser to python, and sends a "Button Clicked!" message
 to python each time the button is clicked in the browser.
 
