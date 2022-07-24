@@ -8,4 +8,4 @@ from .base import (
     NoClosedSubscription,
 )
 from .thread import ThreadedSubscriptionConsumer, ThreadedSubscriptionProducer
-from .multiprocess import ProcessSubscriptionProducer
+from .multiprocess import ProcessSubscriptionProducer, ProcessSubscriptionConsumer
