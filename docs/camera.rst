@@ -87,6 +87,30 @@ above, and it returns exactly the same data for the frame::
 
 This means that if not using CVDisplay, you don't even need OpenCV installed to stream from you raspberry pi.
 
+PiCamera2
+++++++++++++++++
+
+This allows you to use the official raspberry pi camera, with libcamera stack (legacy camera interface disabled).
+This is default since Raspberry Pi OS bullseye, PiCamera2 also works with 64-bit OS.
+You can use the parameter hflip=1 to flip the camera horizontally, vflip=1 to flip vertically, or both to rotate 180 degrees.
+You can use it in exactly the same way as the OpenCV camera above, and it returns exactly the same data for the frame::
+
+    import asyncio
+    from rtcbot import PiCamera2, CVDisplay
+
+    camera = PiCamera2()
+    display = CVDisplay()
+
+    display.putSubscription(camera)
+
+    try:
+        asyncio.get_event_loop().run_forever()
+    finally:
+        camera.close()
+        display.close()
+
+This means that if not using CVDisplay, you don't even need OpenCV installed to stream from you raspberry pi.
+
 API
 ++++++++++++++++
 
