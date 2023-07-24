@@ -134,12 +134,18 @@ class PiCamera(CVCamera):
 
     _log = logging.getLogger("rtcbot.PiCamera")
 
+    # Valid values for rotation are 0, 90, 180, 270
+    def __init__(self, rotation=0, **kwargs):
+        super().__init__(**kwargs)
+        self._rotation = rotation
+
     def _producer(self):
         import picamera
 
         with picamera.PiCamera() as cam:
             cam.resolution = (self._width, self._height)
             cam.framerate = self._fps
+            cam.rotation = self._rotation
             time.sleep(2)  # Why is this needed?
             self._log.debug("PiCamera Ready")
             self._setReady(True)
@@ -151,6 +157,68 @@ class PiCamera(CVCamera):
                 frame = np.empty((self._width * self._height * 3,), dtype=np.uint8)
                 cam.capture(frame, "bgr", use_video_port=True)
                 frame = frame.reshape((self._height, self._width, 3))
+
+                # This optional function is given by the user. default is identity x->x
+                frame = self._processframe(frame)
+
+                # Set the frame arrival event
+                self._loop.call_soon_threadsafe(self._put_nowait, frame)
+
+                i += 1
+                if time.time() > t + 1:
+                    self._log.debug(" %d fps", i)
+                    i = 0
+                    t = time.time()
+        self._setReady(False)
+        self._log.info("Closed camera capture")
+
+
+class PiCamera2(CVCamera):
+    """
+    Instead of using OpenCV camera support, uses the picamera2 library for direct access to the Raspberry Pi's CSI camera.
+
+    The interface is identical to CVCamera. When testing code on a desktop computer, it can be useful to
+    have the code automatically choose the correct camera::
+
+        try:
+            import picamera2 # picamera2 import will fail if not on pi
+            cam = PiCamera2()
+        except ImportError:
+            cam = CVCamera()
+
+    This enables simple drop-in replacement between the two.
+
+    You can use the parameter hflip=True to flip the camera horizontally, vflip=True to flip vertically,
+    or both to rotate 180 degrees.
+    """
+
+    _log = logging.getLogger("rtcbot.PiCamera2")
+
+    def __init__(self, hflip=False, vflip=False, **kwargs):
+        super().__init__(**kwargs)
+        self._hflip = hflip
+        self._vflip = vflip
+
+    def _producer(self):
+        from picamera2 import Picamera2
+        from libcamera import Transform
+
+        with Picamera2() as cam:
+            cam.preview_configuration.transform = Transform(hflip=self._hflip, vflip=self._vflip)
+            cam.preview_configuration.main.size = (self._width, self._height)
+            cam.preview_configuration.display = None
+            cam.preview_configuration.main.format = 'RGB888'
+            if self._fps > 0:
+                cam.video_configuration.controls.FrameDurationLimits = (round(1000000/self._fps), round(1000000/self._fps))
+            cam.start()
+            time.sleep(2)
+            self._log.debug("PiCamera2 Ready")
+            self._setReady(True)
+
+            t = time.time()
+            i = 0
+            while not self._shouldClose:
+                frame = cam.capture_array()
 
                 # This optional function is given by the user. default is identity x->x
                 frame = self._processframe(frame)

@@ -60,6 +60,7 @@ intersphinx_mapping = {
     "aiortc": ("https://aiortc.readthedocs.io/en/latest/", None),
     "inputs": ("https://inputs.readthedocs.io/en/latest/", None),
     "picamera": ("https://picamera.readthedocs.io/en/latest/", None),
+    "picamera2": ("https://datasheets.raspberrypi.com/camera/picamera2-manual.pdf", None),
 }
 
 # Add any paths that contain templates here, relative to this directory.
