@@ -1,4 +1,12 @@
 from aiohttp import web
+import asyncio
+import logging
+
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+
+logging.basicConfig(level=logging.DEBUG)
+
 
 routes = web.RouteTableDef()
 
@@ -6,7 +14,7 @@ from rtcbot import RTCConnection, getRTCBotJS
 
 
 # For this example, we use just one global connection
-conn = RTCConnection()
+conn = RTCConnection(loop=loop)
 
 
 @conn.subscribe
@@ -82,4 +90,4 @@ async def cleanup(app=None):
 app = web.Application()
 app.add_routes(routes)
 app.on_shutdown.append(cleanup)
-web.run_app(app)
+web.run_app(app,loop=loop)
